@@ -46,6 +46,8 @@ from qgis.core import (QgsCoordinateReferenceSystem,
                        QgsNetworkAccessManager,
                        QgsNetworkReplyContent)
 
+from .maptool import PointTool
+
 
 class QRouting:
     """QGIS Plugin Implementation."""
@@ -205,7 +207,7 @@ class QRouting:
             self.first_start = False
             self.dlg = QRoutingDialog()
             self.dlg.crs_input.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
-
+            self.dlg.map_button.setIcon(QIcon(":images/themes/default/cursors/mCapturePoint.svg"))
 
         project = QgsProject.instance()
 
@@ -295,3 +297,9 @@ class QRouting:
                                                    project)
                     bbox_geom.transform(xform)
                 self.iface.mapCanvas().zoomToFeatureExtent(QgsRectangle.fromWkt(bbox_geom.asWkt()))
+
+    def _on_map_click(self):
+        self.dlg.hide()
+        self.point_tool = PointTool(self.iface.mapCanvas())
+        self.iface.mapCanvas().setMapTool(self.point_tool)
+        self.point_tool.canvasClicked.connect(self._write_line_widget)
