@@ -1,0 +1,3 @@
+[submodule "qrouting/third_party/routing-py"]
+	path = qrouting/third_party/routing-py
+	url = https://github.com/gis-ops/routing-py.git

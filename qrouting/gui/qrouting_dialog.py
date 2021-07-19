@@ -26,13 +26,13 @@ import os
 
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
+from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'qrouting_dialog_base.ui'))
+    os.path.dirname(__file__), '../ui/raw/qrouting_dialog_base.ui'))
 
-
-class QRoutingDialog(QtWidgets.QDialog, FORM_CLASS):
+class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
     def __init__(self, parent=None):
         """Constructor."""
         super(QRoutingDialog, self).__init__(parent)
