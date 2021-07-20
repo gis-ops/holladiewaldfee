@@ -22,23 +22,154 @@
  ***************************************************************************/
 """
 
-import os
-
-from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
-from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
+from qgis.PyQt.QtGui import QIcon
+from qgis.gui import QgisInterface, QgsMapTool
+from PyQt5.QtWidgets import QApplication
 
-# This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
-FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), '../ui/raw/qrouting_dialog_base.ui'))
+import json
+from qgis.core import (
+                        QgsProject,
+                        QgsCoordinateTransform,
+                        QgsCoordinateReferenceSystem,
+                        QgsPointXY,
+                        QgsVectorLayer,
+                        QgsLineString,
+                        QgsFeature,
+                        QgsNetworkAccessManager,
+                        QgsNetworkReplyContent,
+                        QgsPoint,
+                        QgsGeometry
+                        )
+from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.PyQt.QtNetwork import QNetworkRequest
+from qgis.PyQt.QtCore import QUrl, QUrlQuery
+
+from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
+from ..core.maptool import PointTool
+from ..util.util import decode_polyline6
+
+# # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
+# FORM_CLASS, _ = uic.loadUiType(os.path.join(
+#     os.path.dirname(__file__), '../ui/raw/qrouting_dialog_base.ui'))
+
 
 class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
-    def __init__(self, parent=None):
+    def __init__(self, iface: QgisInterface, parent=None):
         """Constructor."""
         super(QRoutingDialog, self).__init__(parent)
-        # Set up the user interface from Designer through FORM_CLASS.
-        # After self.setupUi() you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        self.iface = iface
+
+        self.point_tool = PointTool(iface.mapCanvas())
+        self.last_map_tool: QgsMapTool = None
+
+        self.from_map_button.setIcon(
+            QIcon(":images/themes/default/cursors/mCapturePoint.svg")
+        )
+        self.to_map_button.setIcon(
+            QIcon(":images/themes/default/cursors/mCapturePoint.svg")
+        )
+        self.crs_input.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+
+        self.finished.connect(self.result)
+        self.from_map_button.clicked.connect(self._on_map_click_from)
+        self.to_map_button.clicked.connect(self._on_map_click_to)
+        # self.point_tool.canvasClicked.connect(self._write_line_widget_from)
+        # self.point_tool.canvasClicked.connect(self._write_line_widget_to)
+
+    def result(self, result):
+        if result:
+            project = QgsProject.instance()
+            from_text = self.from_xy.value()
+            to_text = self.to_xy.value()
+            crs_input = self.crs_input.crs()
+            crs_out = QgsCoordinateReferenceSystem('EPSG:4326')
+            try:
+                from_yx = [float(coord.strip()) for coord in from_text.split(',')]
+                to_yx = [float(coord.strip()) for coord in to_text.split(',')]
+            except:
+                QMessageBox.critical(self.iface.mainWindow(),
+                                     'QuickAPI error',
+                                     "Did you really specify a coordinate in comma-separated Lat Long?\nExiting...")
+                return
+
+            from_point = QgsPointXY(*reversed(from_yx))
+            to_point = QgsPointXY(*reversed(to_yx))
+
+            if crs_input.authid() != 'EPSG:4326':
+                xform = QgsCoordinateTransform(crs_input,
+                                               crs_out,
+                                               project)
+                from_point_transform = xform.transform(from_point)
+                to_point_transform = xform.transform(from_point)
+                from_point = from_point_transform
+                to_point = to_point_transform
+
+            query = QUrlQuery()
+            query_params = {"locations": [{"lat": from_point.y(), "lon": from_point.x()}, {"lat": to_point.y(), "lon": to_point.x()}], "costing": "auto", "directions_options": {"units": "miles"}}
+            query.addQueryItem('json', json.dumps(query_params))
+
+            url = QUrl('http://localhost:8002/route')
+            url.setQuery(query)
+            print(url)
+            request = QNetworkRequest(url)
+            request.setHeader(QNetworkRequest.UserAgentHeader, 'PyQGIS@GIS-OPS.com')
+
+            nam = QgsNetworkAccessManager()
+            response: QgsNetworkReplyContent = nam.blockingGet(request)
+            status_code = response.attribute(QNetworkRequest.HttpStatusCodeAttribute)
+            if status_code == 200:
+                # Get the content of the response and process it
+                response_json = json.loads(bytes(response.content()))
+                if response_json.get('error'):
+                    QMessageBox.critical(self.iface.mainWindow(),
+                                         "Quick API error",
+                                         "The request was not processed succesfully!\n\n"
+                                         "Message:\n"
+                                         "{}".format(response_json['error']))
+                    return
+
+                layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
+                                           "Valhalla Route",
+                                           "memory")
+
+                line_xy = decode_polyline6(response_json["trip"]["legs"][0]["shape"])
+                line = QgsLineString([QgsPoint(*reversed(coords)) for coords in line_xy])
+                feature = QgsFeature()
+                feature.setGeometry(QgsGeometry(line))
+
+                layer_out.dataProvider().addFeature(feature)
+                layer_out.renderer().symbol().setWidth(1)
+                layer_out.updateExtents()
+                project.addMapLayer(layer_out)
+
+    def _on_map_click_from(self):
+        self.hide()
+        self.point_tool = PointTool(self.iface.mapCanvas())
+        self.iface.mapCanvas().setMapTool(self.point_tool)
+        self.point_tool.canvasClicked.connect(self._write_line_widget_from)
+        self.point_tool.deactivated.connect(
+            lambda: QApplication.restoreOverrideCursor()
+        )
+
+    def _on_map_click_to(self):
+        self.hide()
+        self.point_tool = PointTool(self.iface.mapCanvas())
+        self.iface.mapCanvas().setMapTool(self.point_tool)
+        self.point_tool.canvasClicked.connect(self._write_line_widget_to)
+        self.point_tool.deactivated.connect(
+            lambda: QApplication.restoreOverrideCursor()
+        )
+
+    def _write_line_widget_from(self, point: QgsPointXY):
+        self.from_xy.setText(f"{point.y():.6f}, {point.x():.6f}")
+        self._write_line_widget()
+
+    def _write_line_widget_to(self, point: QgsPointXY):
+        self.to_xy.setText(f"{point.y():.6f}, {point.x():.6f}")
+        self._write_line_widget()
+
+    def _write_line_widget(self):
+        self.iface.mapCanvas().unsetMapTool(self.point_tool)
+        self.show()

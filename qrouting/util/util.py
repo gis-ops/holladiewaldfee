@@ -1,3 +1,6 @@
+from qgis.core import QgsPointXY, QgsCoordinateReferenceSystem, QgsProject, QgsCoordinateTransform
+
+
 def _trans(value, index):
     """
     Copyright (c) 2014 Bruno M. Custódio
@@ -74,15 +77,19 @@ def decode_polyline6(polyline, is3d=False):
 
     return _decode(polyline, precision=6, is3d=is3d)
 
+def maybe_transform_wgs84(
+    point: QgsPointXY, own_crs: QgsCoordinateReferenceSystem, direction: int
+) -> QgsPointXY:
+    """
+    Transforms the ``point`` to (``direction=ForwardTransform``) or from
+    (``direction=ReverseTransform``) WGS84.
+    """
+    wgs84 = QgsCoordinateReferenceSystem.fromEpsgId(4326)
+    project = QgsProject.instance()
+    out_point = point
+    if own_crs != wgs84:
+        xform = QgsCoordinateTransform(own_crs, wgs84, project)
+        point_transform = xform.transform(point, direction)
+        out_point = point_transform
 
-def get_ordinal(number):
-    """Produces an ordinal (1st, 2nd, 3rd, 4th) from a number"""
-
-    if number == 1:
-        return "st"
-    elif number == 2:
-        return "nd"
-    elif number == 3:
-        return "rd"
-    else:
-        return "th"
+    return out_point

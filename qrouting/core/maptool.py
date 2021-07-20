@@ -1,4 +1,5 @@
 from PyQt5.QtCore import pyqtSignal
+from qgis.PyQt.QtGui import QIcon
 from PyQt5.QtGui import QCursor, QPixmap
 from PyQt5.QtWidgets import QApplication
 
@@ -7,8 +8,11 @@ from qgis.core import (QgsCoordinateReferenceSystem,
                        QgsCoordinateTransform,
                        QgsProject
                        )
+from ..util.util import maybe_transform_wgs84
 
-WGS = QgsCoordinateReferenceSystem("EPSG:4326")
+CUSTOM_CURSOR = QCursor(
+    QIcon(":images/themes/default/cursors/mCapturePoint.svg").pixmap(16, 16)
+)
 
 
 class PointTool(QgsMapToolEmitPoint):
@@ -19,9 +23,11 @@ class PointTool(QgsMapToolEmitPoint):
         # Get the click and emit a transformed point
 
         crs_canvas = self.canvas().mapSettings().destinationCrs()
-        xformer = QgsCoordinateTransform(crs_canvas, WGS, QgsProject.instance())
+        self.canvasClicked.emit(maybe_transform_wgs84(
+            event.mapPoint(), crs_canvas, QgsCoordinateTransform.ForwardTransform
+            )
+        )
 
-        point_clicked = event.mapPoint()
-        point_wgs = xformer.transform(point_clicked)
-
-        self.canvasClicked.emit(point_wgs)
+    def activate(self):
+        super().activate()
+        QApplication.setOverrideCursor(CUSTOM_CURSOR)
