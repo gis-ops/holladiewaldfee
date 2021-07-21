@@ -162,7 +162,7 @@ class QRouting:
         icon_path = os.path.join(current_dir, 'icons/icon.png')
         self.add_action(
             icon_path,
-            text=self.tr(u''),
+            text=self.tr(u'Qrouting'),
             callback=self.run,
             parent=self.iface.mainWindow())
 

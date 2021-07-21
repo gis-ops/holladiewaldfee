@@ -38,8 +38,7 @@ from qgis.core import (
                         QgsVectorLayer,
                         QgsLineString,
                         QgsFeature,
-                        QgsNetworkAccessManager,
-                        QgsNetworkReplyContent,
+                        QgsRectangle,
                         QgsPoint,
                         QgsGeometry
                         )
@@ -49,7 +48,7 @@ from qgis.PyQt.QtCore import QUrl, QUrlQuery
 
 from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
-from ..util.util import decode_polyline6
+from ..util.util import maybe_transform_wgs84
 from ..core.client import QClient
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -117,22 +116,39 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
             router = Valhalla(base_url="http://localhost:8002", client=QClient)
 
             locations = [[from_point.x(), from_point.y()], [to_point.x(), to_point.y()]]
-            dry_run = False
 
-            directions = router.directions(locations=locations, profile="auto", dry_run=dry_run)
-            if not dry_run:
-                layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
-                                           "Valhalla Route",
-                                           "memory")
+            directions = router.directions(locations=locations, profile="auto")
+            layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
+                                       "Valhalla Route",
+                                       "memory")
 
-                line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
-                feature = QgsFeature()
-                feature.setGeometry(QgsGeometry(line))
+            line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
+            feature = QgsFeature()
+            feature.setGeometry(QgsGeometry(line))
 
-                layer_out.dataProvider().addFeature(feature)
-                layer_out.renderer().symbol().setWidth(1)
-                layer_out.updateExtents()
-                project.addMapLayer(layer_out)
+            layer_out.dataProvider().addFeature(feature)
+            layer_out.renderer().symbol().setWidth(1)
+            layer_out.updateExtents()
+            project.addMapLayer(layer_out)
+            self._zoom_to_extent(layer_out, project)
+
+    def _zoom_to_extent(self, layer, project):
+        ext = layer.extent()
+        _bbox = []
+        min_y, max_x, max_y, min_x = ext.yMinimum(), ext.xMaximum(), ext.yMaximum(), ext.xMinimum()
+        for p in [QgsPointXY(min_x, min_y), QgsPointXY(max_x, max_y)]:
+            p = maybe_transform_wgs84(
+                        p,
+                        project.crs(),
+                        QgsCoordinateTransform.ReverseTransform,
+                    )
+            _bbox.append(p)
+
+        self.iface.mapCanvas().zoomToFeatureExtent(
+            QgsRectangle(*_bbox)
+        )
+
+
 
     def _on_map_click_from(self):
         self.hide()
