@@ -28,6 +28,8 @@ from qgis.gui import QgisInterface, QgsMapTool
 from PyQt5.QtWidgets import QApplication
 
 import json
+import os.path
+import sys
 from qgis.core import (
                         QgsProject,
                         QgsCoordinateTransform,
@@ -48,6 +50,12 @@ from qgis.PyQt.QtCore import QUrl, QUrlQuery
 from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
 from ..util.util import decode_polyline6
+from ..core.client import QClient
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+rp_path = os.path.join(current_dir, "../third_party", "routing-py")
+sys.path.append(rp_path)
+from routingpy import Valhalla
 
 # # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 # FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -106,36 +114,20 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                 from_point = from_point_transform
                 to_point = to_point_transform
 
-            query = QUrlQuery()
-            query_params = {"locations": [{"lat": from_point.y(), "lon": from_point.x()}, {"lat": to_point.y(), "lon": to_point.x()}], "costing": "auto", "directions_options": {"units": "miles"}}
-            query.addQueryItem('json', json.dumps(query_params))
+            router = Valhalla(base_url="http://localhost:8002", client=QClient)
 
-            url = QUrl('http://localhost:8002/route')
-            url.setQuery(query)
-            print(url)
-            request = QNetworkRequest(url)
-            request.setHeader(QNetworkRequest.UserAgentHeader, 'PyQGIS@GIS-OPS.com')
+            locations = [[from_point.x(), from_point.y()], [to_point.x(), to_point.y()]]
+            print(locations)
+            dry_run = False
 
-            nam = QgsNetworkAccessManager()
-            response: QgsNetworkReplyContent = nam.blockingGet(request)
-            status_code = response.attribute(QNetworkRequest.HttpStatusCodeAttribute)
-            if status_code == 200:
-                # Get the content of the response and process it
-                response_json = json.loads(bytes(response.content()))
-                if response_json.get('error'):
-                    QMessageBox.critical(self.iface.mainWindow(),
-                                         "Quick API error",
-                                         "The request was not processed succesfully!\n\n"
-                                         "Message:\n"
-                                         "{}".format(response_json['error']))
-                    return
-
+            directions = router.directions(locations=locations, profile="auto", dry_run=dry_run)
+            if not dry_run:
                 layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
                                            "Valhalla Route",
                                            "memory")
 
-                line_xy = decode_polyline6(response_json["trip"]["legs"][0]["shape"])
-                line = QgsLineString([QgsPoint(*reversed(coords)) for coords in line_xy])
+                line_xy = directions.geometry
+                line = QgsLineString([QgsPoint(coords) for coords in line_xy])
                 feature = QgsFeature()
                 feature.setGeometry(QgsGeometry(line))
 

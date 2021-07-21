@@ -5,7 +5,7 @@ import time
 import random
 import json
 import warnings
-from qgis.core import QgsNetworkAccessManager, QgsNetworkReplyContent, QgsSettings
+from qgis.core import QgsNetworkAccessManager, QgsNetworkReplyContent
 from qgis.PyQt.QtCore import QUrl, QJsonDocument
 from qgis.PyQt.QtNetwork import QNetworkRequest, QNetworkReply
 
@@ -13,7 +13,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 rp_path = os.path.join(current_dir, "../third_party", "routing-py")
 sys.path.append(rp_path)
 
-from routingpy.client_base import BaseClient, DEFAULT, _RETRIABLE_STATUSES, options
+from routingpy.client_base import BaseClient, DEFAULT, _RETRIABLE_STATUSES
 from routingpy.utils import get_ordinal
 from routingpy import exceptions
 
@@ -50,7 +50,6 @@ class QClient(BaseClient):
         self.kwargs["headers"] = self.headers
         self.kwargs["timeout"] = self.timeout
 
-
     def _request(
         self,
         url,
@@ -78,7 +77,6 @@ class QClient(BaseClient):
         authed_url = self._generate_auth_url(url, get_params)
         final_requests_kwargs = self.kwargs
         url_object = QUrl(self.base_url + authed_url)
-        self.url = url_object.url()
 
         # Determine GET/POST
         requests_method = self.nam.blockingGet
@@ -93,10 +91,12 @@ class QClient(BaseClient):
         # Only print URL and parameters for dry_run
         if dry_run:
             print(
-                "url:\n{}\nParameters:\n{}".format(
-                    self.base_url + authed_url, json.dumps(final_requests_kwargs, indent=2)
+                "url:\n{}\nParameters:\n{}\nMethod:\n{}".format(
+                    self.base_url + authed_url, json.dumps(final_requests_kwargs, indent=2),
+                    str(requests_method)
                 )
             )
+            print(QJsonDocument(final_requests_kwargs).toJson())
             return
 
         body = QJsonDocument.fromJson(json.dumps(final_requests_kwargs).encode())
@@ -105,12 +105,12 @@ class QClient(BaseClient):
 
         start = time.time()
         response: QgsNetworkReplyContent = requests_method(request, body.toJson())
-        self.response_time = time.time() - start
-        self._req = response.request
 
-        if response.error_code():
-            error_code = response.error()
-            error_msg = response.errorString()
+        self.response_time = time.time() - start
+        self._req = response.request()
+        error_code = response.error()
+
+        if error_code is not QNetworkReply.NoError:
             if error_code == QNetworkReply.TimeoutError:
                 raise exceptions.Timeout("Request timed out.")
 
@@ -122,7 +122,7 @@ class QClient(BaseClient):
                     UserWarning,
                 )
 
-            return self._request(url, get_params, post_params, first_request_time, retry_counter + 1)
+                return self._request(url, get_params, post_params, first_request_time, retry_counter + 1)
 
         try:
             result = self._get_body(response)
@@ -131,7 +131,7 @@ class QClient(BaseClient):
             if self.skip_api_error:
                 warnings.warn(
                     "Router {} returned an API error with "
-                    "the following message:\n{}".format(self.__class__.__name__, response.text)
+                    "the following message:\n{}".format(self.__class__.__name__, response.content())
                 )
                 return
             raise
@@ -148,7 +148,7 @@ class QClient(BaseClient):
         try:
             body = json.loads(bytes(response.content()))
         except json.decoder.JSONDecodeError:
-            raise exceptions.JSONParseError("Can't decode JSON response:{}".format(response.text))
+            raise exceptions.JSONParseError("Can't decode JSON response:{}".format(response.content()))
 
         if status_code == 429:
             raise exceptions.OverQueryLimit(status_code, body)
