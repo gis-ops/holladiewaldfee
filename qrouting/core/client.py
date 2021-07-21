@@ -75,33 +75,33 @@ class QClient(BaseClient):
             time.sleep(delay_seconds * (random.random() + 0.5))
 
         authed_url = self._generate_auth_url(url, get_params)
-        final_requests_kwargs = self.kwargs
+        # final_requests_kwargs = self.kwargs
         url_object = QUrl(self.base_url + authed_url)
 
         # Determine GET/POST
         requests_method = self.nam.blockingGet
         if post_params is not None:
             requests_method = self.nam.blockingPost
-            if final_requests_kwargs["headers"]["Content-Type"] == "application/json":
-                final_requests_kwargs["json"] = post_params
-            else:
-                # Send as x-www-form-urlencoded key-value pair string (e.g. Mapbox API)
-                final_requests_kwargs["data"] = post_params
+            # if final_requests_kwargs["headers"]["Content-Type"] == "application/json":
+            #     final_requests_kwargs["json"] = post_params
+            # else:
+            #     # Send as x-www-form-urlencoded key-value pair string (e.g. Mapbox API)
+            #     final_requests_kwargs["data"] = post_params
 
         # Only print URL and parameters for dry_run
         if dry_run:
             print(
                 "url:\n{}\nParameters:\n{}\nMethod:\n{}".format(
-                    self.base_url + authed_url, json.dumps(final_requests_kwargs, indent=2),
+                    self.base_url + authed_url, json.dumps(post_params, indent=2),
                     str(requests_method)
                 )
             )
-            print(QJsonDocument(final_requests_kwargs).toJson())
+            print(QJsonDocument(post_params).toJson())
             return
 
-        body = QJsonDocument.fromJson(json.dumps(final_requests_kwargs).encode())
+        body = QJsonDocument.fromJson(json.dumps(post_params).encode())
         request = QNetworkRequest(url_object)
-        request.setHeader(QNetworkRequest.ContentTypeHeader, final_requests_kwargs["headers"]["Content-Type"])
+        request.setHeader(QNetworkRequest.ContentTypeHeader, self.kwargs["headers"]["Content-Type"])
 
         start = time.time()
         response: QgsNetworkReplyContent = requests_method(request, body.toJson())

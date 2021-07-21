@@ -117,7 +117,6 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
             router = Valhalla(base_url="http://localhost:8002", client=QClient)
 
             locations = [[from_point.x(), from_point.y()], [to_point.x(), to_point.y()]]
-            print(locations)
             dry_run = False
 
             directions = router.directions(locations=locations, profile="auto", dry_run=dry_run)
@@ -126,8 +125,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                                            "Valhalla Route",
                                            "memory")
 
-                line_xy = directions.geometry
-                line = QgsLineString([QgsPoint(coords) for coords in line_xy])
+                line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
                 feature = QgsFeature()
                 feature.setGeometry(QgsGeometry(line))
 
