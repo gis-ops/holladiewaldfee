@@ -43,8 +43,6 @@ from qgis.core import (
                         QgsGeometry
                         )
 from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.PyQt.QtNetwork import QNetworkRequest
-from qgis.PyQt.QtCore import QUrl, QUrlQuery
 
 from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
@@ -54,11 +52,7 @@ from ..core.client import QClient
 current_dir = os.path.dirname(os.path.abspath(__file__))
 rp_path = os.path.join(current_dir, "../third_party", "routing-py")
 sys.path.append(rp_path)
-from routingpy import Valhalla
-
-# # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
-# FORM_CLASS, _ = uic.loadUiType(os.path.join(
-#     os.path.dirname(__file__), '../ui/raw/qrouting_dialog_base.ui'))
+from routingpy import get_router_by_name
 
 
 class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
@@ -70,20 +64,14 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
 
         self.point_tool = PointTool(iface.mapCanvas())
         self.last_map_tool: QgsMapTool = None
-
-        self.from_map_button.setIcon(
-            QIcon(":images/themes/default/cursors/mCapturePoint.svg")
-        )
-        self.to_map_button.setIcon(
-            QIcon(":images/themes/default/cursors/mCapturePoint.svg")
-        )
+        icon = QIcon(":images/themes/default/cursors/mCapturePoint.svg")
+        self.from_map_button.setIcon(icon)
+        self.to_map_button.setIcon(icon)
         self.crs_input.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
 
         self.finished.connect(self.result)
         self.from_map_button.clicked.connect(self._on_map_click_from)
         self.to_map_button.clicked.connect(self._on_map_click_to)
-        # self.point_tool.canvasClicked.connect(self._write_line_widget_from)
-        # self.point_tool.canvasClicked.connect(self._write_line_widget_to)
 
     def result(self, result):
         if result:
@@ -92,6 +80,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
             to_text = self.to_xy.value()
             crs_input = self.crs_input.crs()
             crs_out = QgsCoordinateReferenceSystem('EPSG:4326')
+            provider = self.provider.currentText()
             try:
                 from_yx = [float(coord.strip()) for coord in from_text.split(',')]
                 to_yx = [float(coord.strip()) for coord in to_text.split(',')]
@@ -113,16 +102,23 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                 from_point = from_point_transform
                 to_point = to_point_transform
 
-            router = Valhalla(base_url="http://localhost:8002", client=QClient)
+            base_url = "http://localhost:8002" if provider == "Valhalla" else "http://localhost:5000"
+            profile = "auto" if provider == "Valhalla" else "driving"
 
+            router = get_router_by_name(provider.lower())(base_url=base_url, client=QClient)
             locations = [[from_point.x(), from_point.y()], [to_point.x(), to_point.y()]]
-
-            directions = router.directions(locations=locations, profile="auto")
+            direction_args = {"locations": locations, "profile": profile}
+            if provider == "OSRM":
+                direction_args.update({"overview": "full"})
+            directions = router.directions(**direction_args)
             layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
-                                       "Valhalla Route",
+                                       f"{provider} Route",
                                        "memory")
 
-            line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
+            if provider == "OSRM":
+                line = QgsLineString([QgsPoint(*reversed(coords)) for coords in directions.geometry])
+            else:
+                line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
             feature = QgsFeature()
             feature.setGeometry(QgsGeometry(line))
 
@@ -147,8 +143,6 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.iface.mapCanvas().zoomToFeatureExtent(
             QgsRectangle(*_bbox)
         )
-
-
 
     def _on_map_click_from(self):
         self.hide()

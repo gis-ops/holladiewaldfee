@@ -74,7 +74,7 @@ class QClient(BaseClient):
             # Jitter this value by 50% and pause.
             time.sleep(delay_seconds * (random.random() + 0.5))
 
-        authed_url = self._generate_auth_url(url, get_params)
+        authed_url = self._strip_tailing_qmark(self._generate_auth_url(url, get_params))
         # final_requests_kwargs = self.kwargs
         url_object = QUrl(self.base_url + authed_url)
 
@@ -96,15 +96,19 @@ class QClient(BaseClient):
                     str(requests_method)
                 )
             )
-            print(QJsonDocument(post_params).toJson())
             return
 
-        body = QJsonDocument.fromJson(json.dumps(post_params).encode())
+        if post_params:
+            body = QJsonDocument.fromJson(json.dumps(post_params).encode())
         request = QNetworkRequest(url_object)
         request.setHeader(QNetworkRequest.ContentTypeHeader, self.kwargs["headers"]["Content-Type"])
 
         start = time.time()
-        response: QgsNetworkReplyContent = requests_method(request, body.toJson())
+        request_args = {"request": request}
+        if post_params:
+            request_args.update({"data": body.toJson()})
+        print(request.url())
+        response: QgsNetworkReplyContent = requests_method(**request_args)
 
         self.response_time = time.time() - start
         self._req = response.request()
@@ -164,4 +168,9 @@ class QClient(BaseClient):
 
         return body
 
-
+    @staticmethod
+    def _strip_tailing_qmark(url):
+        if url[-1] == "?":
+            return url[:-1]
+        else:
+            return url
