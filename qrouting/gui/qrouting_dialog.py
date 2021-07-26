@@ -24,7 +24,7 @@
 
 from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtGui import QIcon
-from qgis.gui import QgisInterface, QgsMapTool
+from qgis.gui import QgisInterface, QgsMapTool, QgsTableWidgetItem
 from PyQt5.QtWidgets import QApplication
 
 import json
@@ -43,6 +43,7 @@ from qgis.core import (
                         QgsGeometry
                         )
 from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.PyQt.QtCore import QPersistentModelIndex
 
 from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
@@ -64,49 +65,47 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
 
         self.point_tool = PointTool(iface.mapCanvas())
         self.last_map_tool: QgsMapTool = None
-        icon = QIcon(":images/themes/default/cursors/mCapturePoint.svg")
-        self.from_map_button.setIcon(icon)
-        self.to_map_button.setIcon(icon)
-        self.crs_input.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+        add_point_icon = QIcon(":images/themes/default/symbologyAdd.svg")
+        remove_points_icon = QIcon(":images/themes/default/mActionRemove.svg")
+        add_layer_icon = QIcon(":images/themes/default/mActionAddLayer.svg")
+        arrow_up_icon = QIcon(":images/themes/default/mActionArrowUp.svg")
+        arrow_down_icon = QIcon(":images/themes/default/mActionArrowDown.svg")
+        self.waypoint_widget.add_wp.setIcon(add_point_icon)
+        self.waypoint_widget.remove_wp.setIcon(remove_points_icon)
+        self.waypoint_widget.add_from_layer.setIcon(add_layer_icon)
+        self.waypoint_widget.move_up.setIcon(arrow_up_icon)
+        self.waypoint_widget.move_down.setIcon(arrow_down_icon)
+        # self.crs_input.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
 
         self.finished.connect(self.result)
-        self.from_map_button.clicked.connect(self._on_map_click_from)
-        self.to_map_button.clicked.connect(self._on_map_click_to)
+        self.waypoint_widget.add_wp.clicked.connect(self._add_point)
+        self.waypoint_widget.remove_wp.clicked.connect(self._remove_point)
+
+    def mock_result(self, result):
+        pass
 
     def result(self, result):
         if result:
             project = QgsProject.instance()
-            from_text = self.from_xy.value()
-            to_text = self.to_xy.value()
-            crs_input = self.crs_input.crs()
-            crs_out = QgsCoordinateReferenceSystem('EPSG:4326')
-            provider = self.provider.currentText()
+            rows = self.waypoint_widget.coord_table.rowCount()
+            locations = []
             try:
-                from_yx = [float(coord.strip()) for coord in from_text.split(',')]
-                to_yx = [float(coord.strip()) for coord in to_text.split(',')]
-            except:
+                for row in range(rows):
+                    lat, lon = self.waypoint_widget.coord_table.item(row, 0), self.waypoint_widget.coord_table.item(row, 1)
+                    locations.append({"lat": float(lat.text()), "lon": float(lon.text())})
+            except Exception as e:
                 QMessageBox.critical(self.iface.mainWindow(),
                                      'QuickAPI error',
-                                     "Did you really specify a coordinate in comma-separated Lat Long?\nExiting...")
+                                     e)
                 return
+            provider = self.provider.currentText()
 
-            from_point = QgsPointXY(*reversed(from_yx))
-            to_point = QgsPointXY(*reversed(to_yx))
-
-            if crs_input.authid() != 'EPSG:4326':
-                xform = QgsCoordinateTransform(crs_input,
-                                               crs_out,
-                                               project)
-                from_point_transform = xform.transform(from_point)
-                to_point_transform = xform.transform(from_point)
-                from_point = from_point_transform
-                to_point = to_point_transform
-
+            points = [QgsPointXY(location["lon"], location["lat"]) for location in locations]
+            locations = [[point.x(), point.y()] for point in points]
             base_url = "http://localhost:8002" if provider == "Valhalla" else "http://localhost:5000"
             profile = "auto" if provider == "Valhalla" else "driving"
 
             router = get_router_by_name(provider.lower())(base_url=base_url, client=QClient)
-            locations = [[from_point.x(), from_point.y()], [to_point.x(), to_point.y()]]
             direction_args = {"locations": locations, "profile": profile}
             if provider == "OSRM":
                 direction_args.update({"overview": "full"})
@@ -144,32 +143,26 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
             QgsRectangle(*_bbox)
         )
 
-    def _on_map_click_from(self):
+    def _add_point(self):
         self.hide()
         self.point_tool = PointTool(self.iface.mapCanvas())
         self.iface.mapCanvas().setMapTool(self.point_tool)
-        self.point_tool.canvasClicked.connect(self._write_line_widget_from)
+        self.point_tool.canvasClicked.connect(self._add_to_table)
         self.point_tool.deactivated.connect(
             lambda: QApplication.restoreOverrideCursor()
         )
 
-    def _on_map_click_to(self):
-        self.hide()
-        self.point_tool = PointTool(self.iface.mapCanvas())
-        self.iface.mapCanvas().setMapTool(self.point_tool)
-        self.point_tool.canvasClicked.connect(self._write_line_widget_to)
-        self.point_tool.deactivated.connect(
-            lambda: QApplication.restoreOverrideCursor()
-        )
-
-    def _write_line_widget_from(self, point: QgsPointXY):
-        self.from_xy.setText(f"{point.y():.6f}, {point.x():.6f}")
-        self._write_line_widget()
-
-    def _write_line_widget_to(self, point: QgsPointXY):
-        self.to_xy.setText(f"{point.y():.6f}, {point.x():.6f}")
-        self._write_line_widget()
-
-    def _write_line_widget(self):
+    def _add_to_table(self, point: QgsPointXY):
+        row_index = self.waypoint_widget.coord_table.rowCount()
+        print(row_index)
+        self.waypoint_widget.coord_table.insertRow(row_index)
+        self.waypoint_widget.coord_table.setItem(row_index, 0, QgsTableWidgetItem(f"{point.y():.6f}"))
+        self.waypoint_widget.coord_table.setItem(row_index, 1, QgsTableWidgetItem(f"{point.x():.6f}"))
+        self.waypoint_widget.coord_table.resizeColumnsToContents()
         self.iface.mapCanvas().unsetMapTool(self.point_tool)
         self.show()
+
+    def _remove_point(self):
+        row_indices = set(QPersistentModelIndex(index) for index in self.waypoint_widget.coord_table.selectedIndexes())
+        for row_index in row_indices:
+            self.waypoint_widget.coord_table.removeRow(row_index.row())
