@@ -52,6 +52,7 @@ from ..util.resources import _locate_resource
 from ..core.client import QClient
 from ..core.routing import _get_profile_from_button_name
 from ..ui.layer_select_dialog import LayerSelectDialog
+from ..core.exceptions import InsufficientPoints
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 rp_path = os.path.join(current_dir, "../third_party", "routing-py")
@@ -92,10 +93,14 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                                      e)
                 return
 
-            self.selected_provider = self.provider.currentText()
-
             points = [QgsPointXY(location["lon"], location["lat"]) for location in locations]
+
+            if len(points) < 2:
+                raise InsufficientPoints("Please specify at least two points!")
+
             locations = [[point.x(), point.y()] for point in points]
+
+            self.selected_provider = self.provider.currentText()
             base_url = "http://localhost:8002" if self.selected_provider == "Valhalla" else "http://localhost:5000"
 
             profile = self.get_profile()
