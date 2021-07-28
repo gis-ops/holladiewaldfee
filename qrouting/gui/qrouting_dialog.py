@@ -48,8 +48,9 @@ from qgis.PyQt.QtCore import QPersistentModelIndex
 from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
 from ..util.util import maybe_transform_wgs84
+from ..util.resources import _locate_resource
 from ..core.client import QClient
-
+from ..core.routing import _get_profile_from_button_name
 current_dir = os.path.dirname(os.path.abspath(__file__))
 rp_path = os.path.join(current_dir, "../third_party", "routing-py")
 sys.path.append(rp_path)
@@ -65,24 +66,13 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
 
         self.point_tool = PointTool(iface.mapCanvas())
         self.last_map_tool: QgsMapTool = None
-        add_point_icon = QIcon(":images/themes/default/symbologyAdd.svg")
-        remove_points_icon = QIcon(":images/themes/default/mActionRemove.svg")
-        add_layer_icon = QIcon(":images/themes/default/mActionAddLayer.svg")
-        arrow_up_icon = QIcon(":images/themes/default/mActionArrowUp.svg")
-        arrow_down_icon = QIcon(":images/themes/default/mActionArrowDown.svg")
-        self.waypoint_widget.add_wp.setIcon(add_point_icon)
-        self.waypoint_widget.remove_wp.setIcon(remove_points_icon)
-        self.waypoint_widget.add_from_layer.setIcon(add_layer_icon)
-        self.waypoint_widget.move_up.setIcon(arrow_up_icon)
-        self.waypoint_widget.move_down.setIcon(arrow_down_icon)
-        # self.crs_input.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+        self.set_icons()
 
         self.finished.connect(self.result)
         self.waypoint_widget.add_wp.clicked.connect(self._add_point)
         self.waypoint_widget.remove_wp.clicked.connect(self._remove_point)
-
-    def mock_result(self, result):
-        pass
+        self.waypoint_widget.move_up.clicked.connect(self._move_item_up)
+        self.waypoint_widget.move_down.clicked.connect(self._move_item_down)
 
     def result(self, result):
         if result:
@@ -98,26 +88,25 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                                      'QuickAPI error',
                                      e)
                 return
-            provider = self.provider.currentText()
+
+            self.selected_provider = self.provider.currentText()
 
             points = [QgsPointXY(location["lon"], location["lat"]) for location in locations]
             locations = [[point.x(), point.y()] for point in points]
-            base_url = "http://localhost:8002" if provider == "Valhalla" else "http://localhost:5000"
-            profile = "auto" if provider == "Valhalla" else "driving"
+            base_url = "http://localhost:8002" if self.selected_provider == "Valhalla" else "http://localhost:5000"
 
-            router = get_router_by_name(provider.lower())(base_url=base_url, client=QClient)
+            profile = self.get_profile()
+
+            router = get_router_by_name(self.selected_provider.lower())(base_url=base_url, client=QClient)
             direction_args = {"locations": locations, "profile": profile}
-            if provider == "OSRM":
+            if self.selected_provider == "OSRM":
                 direction_args.update({"overview": "full"})
             directions = router.directions(**direction_args)
             layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
-                                       f"{provider} Route",
+                                       f"{self.selected_provider} Route",
                                        "memory")
 
-            if provider == "OSRM":
-                line = QgsLineString([QgsPoint(*reversed(coords)) for coords in directions.geometry])
-            else:
-                line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
+            line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
             feature = QgsFeature()
             feature.setGeometry(QgsGeometry(line))
 
@@ -154,7 +143,6 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
 
     def _add_to_table(self, point: QgsPointXY):
         row_index = self.waypoint_widget.coord_table.rowCount()
-        print(row_index)
         self.waypoint_widget.coord_table.insertRow(row_index)
         self.waypoint_widget.coord_table.setItem(row_index, 0, QgsTableWidgetItem(f"{point.y():.6f}"))
         self.waypoint_widget.coord_table.setItem(row_index, 1, QgsTableWidgetItem(f"{point.x():.6f}"))
@@ -166,3 +154,50 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         row_indices = set(QPersistentModelIndex(index) for index in self.waypoint_widget.coord_table.selectedIndexes())
         for row_index in row_indices:
             self.waypoint_widget.coord_table.removeRow(row_index.row())
+
+    def set_icons(self):
+        # default QGIS icons
+        add_point_icon = QIcon(":images/themes/default/symbologyAdd.svg")
+        remove_points_icon = QIcon(":images/themes/default/mActionRemove.svg")
+        add_layer_icon = QIcon(":images/themes/default/mActionAddLayer.svg")
+        arrow_up_icon = QIcon(":images/themes/default/mActionArrowUp.svg")
+        arrow_down_icon = QIcon(":images/themes/default/mActionArrowDown.svg")
+        self.waypoint_widget.add_wp.setIcon(add_point_icon)
+        self.waypoint_widget.remove_wp.setIcon(remove_points_icon)
+        self.waypoint_widget.add_from_layer.setIcon(add_layer_icon)
+        self.waypoint_widget.move_up.setIcon(arrow_up_icon)
+        self.waypoint_widget.move_down.setIcon(arrow_down_icon)
+
+        # custom icons
+        self.profile_widget.profile_ped.setIcon(QIcon(_locate_resource("pedestrian.svg")))
+        self.profile_widget.profile_mbike.setIcon(QIcon(_locate_resource("motorbike.svg")))
+        self.profile_widget.profile_car.setIcon(QIcon(_locate_resource("car.svg")))
+        self.profile_widget.profile_bike.setIcon(QIcon(_locate_resource("bike.svg")))
+        self.profile_widget.profile_bus.setIcon(QIcon(_locate_resource("bus.svg")))
+
+    def get_profile(self):
+
+        for button in self.profile_buttons:
+            if button.isChecked():
+                button_name = button.objectName()
+                return _get_profile_from_button_name(button_name, self.selected_provider)
+
+    def _move_item_down(self):  # https://stackoverflow.com/a/11930967/10955832
+        row = self.waypoint_widget.coord_table.currentRow()
+        column = self.waypoint_widget.coord_table.currentColumn()
+        if row < self.waypoint_widget.coord_table.rowCount()-1:
+            self.waypoint_widget.coord_table.insertRow(row+2)
+            for i in range(self.waypoint_widget.coord_table.columnCount()):
+                self.waypoint_widget.coord_table.setItem(row+2, i, self.waypoint_widget.coord_table.takeItem(row, i))
+                self.waypoint_widget.coord_table.setCurrentCell(row+2, column)
+            self.waypoint_widget.coord_table.removeRow(row)
+
+    def _move_item_up(self):
+        row = self.waypoint_widget.coord_table.currentRow()
+        column = self.waypoint_widget.coord_table.currentColumn();
+        if row > 0:
+            self.waypoint_widget.coord_table.insertRow(row - 1)
+            for i in range(self.waypoint_widget.coord_table.columnCount()):
+                self.waypoint_widget.coord_table.setItem(row - 1, i, self.waypoint_widget.coord_table.takeItem(row + 1, i))
+                self.waypoint_widget.coord_table.setCurrentCell(row - 1, column)
+            self.waypoint_widget.coord_table.removeRow(row + 1)

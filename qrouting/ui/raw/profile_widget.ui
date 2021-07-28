@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Form</class>
- <widget class="QWidget" name="Form">
+ <class>ProfileWidget</class>
+ <widget class="QWidget" name="ProfileWidget">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -28,6 +28,15 @@
        <property name="text">
         <string>...</string>
        </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+       <attribute name="buttonGroup">
+        <string notr="true">profile_buttons</string>
+       </attribute>
       </widget>
      </item>
      <item>
@@ -35,6 +44,12 @@
        <property name="text">
         <string>...</string>
        </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <attribute name="buttonGroup">
+        <string notr="true">profile_buttons</string>
+       </attribute>
       </widget>
      </item>
      <item>
@@ -42,6 +57,12 @@
        <property name="text">
         <string>...</string>
        </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <attribute name="buttonGroup">
+        <string notr="true">profile_buttons</string>
+       </attribute>
       </widget>
      </item>
      <item>
@@ -49,13 +70,28 @@
        <property name="text">
         <string>...</string>
        </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <attribute name="buttonGroup">
+        <string notr="true">profile_buttons</string>
+       </attribute>
       </widget>
      </item>
      <item>
-      <widget class="QToolButton" name="profile_truck">
+      <widget class="QToolButton" name="profile_bus">
+       <property name="whatsThis">
+        <string>Transit</string>
+       </property>
        <property name="text">
         <string>...</string>
        </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <attribute name="buttonGroup">
+        <string notr="true">profile_buttons</string>
+       </attribute>
       </widget>
      </item>
      <item>
@@ -80,4 +116,7 @@
  </widget>
  <resources/>
  <connections/>
+ <buttongroups>
+  <buttongroup name="profile_buttons"/>
+ </buttongroups>
 </ui>

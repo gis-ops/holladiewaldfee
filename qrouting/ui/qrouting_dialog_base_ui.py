@@ -10,6 +10,10 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from .waypoint_widget_ui import Ui_WaypointWidget
+from .profile_widget_ui import Ui_ProfileWidget
+
+from ..util.resources import _locate_resource
+from .. import BASE_DIR
 
 class Ui_QRoutingDialogBase(object):
     def setupUi(self, QRoutingDialogBase):
@@ -38,40 +42,33 @@ class Ui_QRoutingDialogBase(object):
         self.method.addItem("")
         self.gridLayout_3.addWidget(self.method, 1, 1, 1, 2)
         self.gridLayout.addWidget(self.widget, 0, 0, 1, 1)
+
+        # Profile stuff
+        self.profile_widget = Ui_ProfileWidget()
+        self.p_widget = QtWidgets.QWidget()
+        self.profile_widget.setupUi(self.p_widget)
+        self.gridLayout.addWidget(self.p_widget)
+        self.profile_buttons = [
+            self.profile_widget.profile_bike,
+            self.profile_widget.profile_mbike,
+            self.profile_widget.profile_bus,
+            self.profile_widget.profile_ped,
+            self.profile_widget.profile_car,
+        ]
+
+        # Waypoint stuff
         self.waypoint_widget = Ui_WaypointWidget()
-        self.widget = QtWidgets.QWidget()
-        self.waypoint_widget.setupUi(self.widget)
-        self.gridLayout.addWidget(self.widget)
+        self.w_widget = QtWidgets.QWidget()
+        self.waypoint_widget.setupUi(self.w_widget)
+        self.gridLayout.addWidget(self.w_widget)
         self.waypoint_widget.coord_table.setSizeAdjustPolicy(
             QtWidgets.QAbstractScrollArea.AdjustToContents)
-        # self.crs_input = QgsProjectionSelectionWidget(QRoutingDialogBase)
-        # self.crs_input.setObjectName("crs_input")
-        # self.gridLayout.addWidget(self.crs_input, 4, 0, 1, 2)
+
         self.button_box = QtWidgets.QDialogButtonBox(QRoutingDialogBase)
         self.button_box.setOrientation(QtCore.Qt.Horizontal)
         self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
         self.button_box.setObjectName("button_box")
         self.gridLayout.addWidget(self.button_box, 5, 0, 1, 1)
-
-        # self.widget_2 = QtWidgets.QWidget(QRoutingDialogBase)
-        # self.widget_2.setObjectName("widget_2")
-        # self.gridLayout_2 = QtWidgets.QGridLayout(self.widget_2)
-        # self.gridLayout_2.setObjectName("gridLayout_2")
-        # self.from_xy = QgsFilterLineEdit(self.widget_2)
-        # self.from_xy.setProperty("qgisRelation", "")
-        # self.from_xy.setObjectName("from_xy")
-        # self.gridLayout_2.addWidget(self.from_xy, 0, 0, 1, 1)
-        # self.from_map_button = QtWidgets.QToolButton(self.widget_2)
-        # self.from_map_button.setObjectName("from_map_button")
-        # self.gridLayout_2.addWidget(self.from_map_button, 0, 1, 1, 1)
-        # self.to_xy = QgsFilterLineEdit(self.widget_2)
-        # self.to_xy.setProperty("qgisRelation", "")
-        # self.to_xy.setObjectName("to_xy")
-        # self.gridLayout_2.addWidget(self.to_xy, 1, 0, 1, 1)
-        # self.to_map_button = QtWidgets.QToolButton(self.widget_2)
-        # self.to_map_button.setObjectName("to_map_button")
-        # self.gridLayout_2.addWidget(self.to_map_button, 1, 1, 1, 1)
-        # self.gridLayout.addWidget(self.widget_2, 2, 0, 2, 1)
 
         self.retranslateUi(QRoutingDialogBase)
         self.button_box.accepted.connect(QRoutingDialogBase.accept)
@@ -87,9 +84,4 @@ class Ui_QRoutingDialogBase(object):
         self.provider.setItemText(1, _translate("QRoutingDialogBase", "OSRM"))
         self.method.setItemText(0, _translate("QRoutingDialogBase", "http"))
         self.method.setItemText(1, _translate("QRoutingDialogBase", "bindings"))
-        # self.from_xy.setPlaceholderText(_translate("QRoutingDialogBase", "From... (lat, lon)"))
-        # self.from_map_button.setText(_translate("QRoutingDialogBase", "..."))
-        # self.to_xy.setPlaceholderText(_translate("QRoutingDialogBase", "To... (lat, lon)"))
-        # self.to_map_button.setText(_translate("QRoutingDialogBase", "..."))
-from qgsfilterlineedit import QgsFilterLineEdit
-from qgsprojectionselectionwidget import QgsProjectionSelectionWidget
+

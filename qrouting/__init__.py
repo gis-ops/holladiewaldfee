@@ -22,6 +22,7 @@
  ***************************************************************************/
  This script initializes the plugin, making it known to QGIS.
 """
+import os
 
 
 # noinspection PyPep8Naming
@@ -34,3 +35,6 @@ def classFactory(iface):  # pylint: disable=invalid-name
     #
     from .qrouting import QRouting
     return QRouting(iface)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ICON_DIR = os.path.join(BASE_DIR, "icons")
