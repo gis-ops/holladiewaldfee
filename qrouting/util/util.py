@@ -1,6 +1,7 @@
 from qgis.core import QgsPointXY, QgsCoordinateReferenceSystem, QgsProject, QgsCoordinateTransform
 
-def maybe_transform_wgs84(
+
+def to_wgs84(
     point: QgsPointXY, own_crs: QgsCoordinateReferenceSystem, direction: int
 ) -> QgsPointXY:
     """

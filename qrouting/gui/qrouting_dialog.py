@@ -30,6 +30,7 @@ from PyQt5.QtWidgets import QApplication
 import json
 import os.path
 import sys
+from typing import List, Union
 from qgis.core import (
                         QgsProject,
                         QgsCoordinateTransform,
@@ -47,7 +48,7 @@ from qgis.PyQt.QtCore import QPersistentModelIndex
 
 from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
-from ..util.util import maybe_transform_wgs84
+from ..util.util import to_wgs84
 from ..util.resources import _locate_resource
 from ..core.client import QClient
 from ..core.routing import _get_profile_from_button_name
@@ -71,47 +72,30 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.last_map_tool: QgsMapTool = None
         self.set_icons()
 
-        self.finished.connect(self.result)
+        self.finished.connect(self.run)
         self.waypoint_widget.add_wp.clicked.connect(self._add_point)
         self.waypoint_widget.remove_wp.clicked.connect(self._remove_point)
         self.waypoint_widget.move_up.clicked.connect(self._move_item_up)
         self.waypoint_widget.move_down.clicked.connect(self._move_item_down)
         self.waypoint_widget.add_from_layer.clicked.connect(self._open_layer_selection)
 
-    def result(self, result):
+    def run(self, result: int) -> None:
+        """Run main functionality after pressing OK."""
         if result:
             project = QgsProject.instance()
-            rows = self.waypoint_widget.coord_table.rowCount()
-            locations = []
-            try:
-                for row in range(rows):
-                    lat, lon = self.waypoint_widget.coord_table.item(row, 0), self.waypoint_widget.coord_table.item(row, 1)
-                    locations.append({"lat": float(lat.text()), "lon": float(lon.text())})
-            except Exception as e:
-                QMessageBox.critical(self.iface.mainWindow(),
-                                     'QuickAPI error',
-                                     e)
-                return
+            locations = self.get_locations_from_table()
 
-            points = [QgsPointXY(location["lon"], location["lat"]) for location in locations]
+            selected_provider = self.provider.currentText()
+            base_url = "http://localhost:8002" if selected_provider == "Valhalla" else "http://localhost:5000"
+            profile = self.get_profile(selected_provider)
 
-            if len(points) < 2:
-                raise InsufficientPoints("Please specify at least two points!")
-
-            locations = [[point.x(), point.y()] for point in points]
-
-            self.selected_provider = self.provider.currentText()
-            base_url = "http://localhost:8002" if self.selected_provider == "Valhalla" else "http://localhost:5000"
-
-            profile = self.get_profile()
-
-            router = get_router_by_name(self.selected_provider.lower())(base_url=base_url, client=QClient)
+            router = get_router_by_name(selected_provider.lower())(base_url=base_url, client=QClient)
             direction_args = {"locations": locations, "profile": profile}
-            if self.selected_provider == "OSRM":
+            if selected_provider == "OSRM":
                 direction_args.update({"overview": "full"})
             directions = router.directions(**direction_args)
             layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
-                                       f"{self.selected_provider} Route",
+                                       f"{selected_provider} Route",
                                        "memory")
 
             line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
@@ -124,12 +108,13 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
             project.addMapLayer(layer_out)
             self._zoom_to_extent(layer_out, project)
 
-    def _zoom_to_extent(self, layer, project):
+    def _zoom_to_extent(self, layer: QgsVectorLayer, project: QgsProject) -> None:
+        """Zoom to the extent of a layer."""
         ext = layer.extent()
         _bbox = []
         min_y, max_x, max_y, min_x = ext.yMinimum(), ext.xMaximum(), ext.yMaximum(), ext.xMinimum()
         for p in [QgsPointXY(min_x, min_y), QgsPointXY(max_x, max_y)]:
-            p = maybe_transform_wgs84(
+            p = to_wgs84(
                         p,
                         project.crs(),
                         QgsCoordinateTransform.ReverseTransform,
@@ -140,7 +125,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
             QgsRectangle(*_bbox)
         )
 
-    def _add_point(self):
+    def _add_point(self) -> None:
         self.hide()
         self.point_tool = PointTool(self.iface.mapCanvas())
         self.iface.mapCanvas().setMapTool(self.point_tool)
@@ -149,7 +134,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
             lambda: QApplication.restoreOverrideCursor()
         )
 
-    def _add_to_table(self, point: QgsPointXY):
+    def _add_to_table(self, point: QgsPointXY) -> None:
         row_index = self.waypoint_widget.coord_table.rowCount()
         self.waypoint_widget.coord_table.insertRow(row_index)
         self.waypoint_widget.coord_table.setItem(row_index, 0, QgsTableWidgetItem(f"{point.y():.6f}"))
@@ -158,12 +143,12 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.iface.mapCanvas().unsetMapTool(self.point_tool)
         self.show()
 
-    def _remove_point(self):
+    def _remove_point(self) -> None:
         row_indices = set(QPersistentModelIndex(index) for index in self.waypoint_widget.coord_table.selectedIndexes())
         for row_index in row_indices:
             self.waypoint_widget.coord_table.removeRow(row_index.row())
 
-    def set_icons(self):
+    def set_icons(self) -> None:
         # default QGIS icons
         add_point_icon = QIcon(":images/themes/default/symbologyAdd.svg")
         remove_points_icon = QIcon(":images/themes/default/mActionRemove.svg")
@@ -183,13 +168,13 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.profile_widget.profile_bike.setIcon(QIcon(_locate_resource("bike.svg")))
         self.profile_widget.profile_bus.setIcon(QIcon(_locate_resource("bus.svg")))
 
-    def get_profile(self):
+    def get_profile(self, provider: str) -> str:
         for button in self.profile_buttons:
             if button.isChecked():
                 button_name = button.objectName()
-                return _get_profile_from_button_name(button_name, self.selected_provider)
+                return _get_profile_from_button_name(button_name, provider)
 
-    def _move_item_down(self):  # https://stackoverflow.com/a/11930967/10955832
+    def _move_item_down(self) -> None:  # https://stackoverflow.com/a/11930967/10955832
         row = self.waypoint_widget.coord_table.currentRow()
         column = self.waypoint_widget.coord_table.currentColumn()
         if row < self.waypoint_widget.coord_table.rowCount()-1:
@@ -199,7 +184,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                 self.waypoint_widget.coord_table.setCurrentCell(row+2, column)
             self.waypoint_widget.coord_table.removeRow(row)
 
-    def _move_item_up(self):
+    def _move_item_up(self) -> None:
         row = self.waypoint_widget.coord_table.currentRow()
         column = self.waypoint_widget.coord_table.currentColumn();
         if row > 0:
@@ -209,16 +194,38 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                 self.waypoint_widget.coord_table.setCurrentCell(row - 1, column)
             self.waypoint_widget.coord_table.removeRow(row + 1)
 
-    def _open_layer_selection(self):
+    def _open_layer_selection(self) -> None:
         self.config_dlg = LayerSelectDialog(parent=self)
         self.config_dlg.layer_selected.connect(self._handle_layer)
         self.config_dlg.exec_()
 
-    def _handle_layer(self, layer):
+    def _handle_layer(self, layer: QgsVectorLayer) -> None:
         for feature in layer.getFeatures():
-            point = maybe_transform_wgs84(
+            point = to_wgs84(
                 point=feature.geometry().asPoint(),
                 own_crs=layer.crs(),
                 direction=QgsCoordinateTransform.ForwardTransform
             )
             self._add_to_table(point)
+
+    def get_locations_from_table(self) -> Union[None, List[List[float]]]:
+        rows = self.waypoint_widget.coord_table.rowCount()
+        locations = []
+        try:
+            for row in range(rows):
+                lat, lon = self.waypoint_widget.coord_table.item(row, 0), self.waypoint_widget.coord_table.item(row, 1)
+                locations.append({"lat": float(lat.text()), "lon": float(lon.text())})
+        except Exception as e:
+            QMessageBox.critical(self.iface.mainWindow(),
+                                 'QuickAPI error',
+                                 e)
+            return
+
+        points = [QgsPointXY(location["lon"], location["lat"]) for location in locations]
+
+        if len(points) < 2:
+            raise InsufficientPoints("Please specify at least two points!")
+
+        locations = [[point.x(), point.y()] for point in points]
+
+        return locations

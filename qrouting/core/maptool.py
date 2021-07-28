@@ -8,7 +8,7 @@ from qgis.core import (QgsCoordinateReferenceSystem,
                        QgsCoordinateTransform,
                        QgsProject
                        )
-from ..util.util import maybe_transform_wgs84
+from ..util.util import to_wgs84
 
 CUSTOM_CURSOR = QCursor(
     QIcon(":images/themes/default/cursors/mCapturePoint.svg").pixmap(16, 16)
@@ -19,15 +19,15 @@ class PointTool(QgsMapToolEmitPoint):
 
     canvasClicked = pyqtSignal('QgsPointXY')
 
-    def canvasReleaseEvent(self, event: QgsMapMouseEvent):
+    def canvasReleaseEvent(self, event: QgsMapMouseEvent) -> None:
         # Get the click and emit a transformed point
 
         crs_canvas = self.canvas().mapSettings().destinationCrs()
-        self.canvasClicked.emit(maybe_transform_wgs84(
+        self.canvasClicked.emit(to_wgs84(
             event.mapPoint(), crs_canvas, QgsCoordinateTransform.ForwardTransform
             )
         )
 
-    def activate(self):
+    def activate(self) -> None:
         super().activate()
         QApplication.setOverrideCursor(CUSTOM_CURSOR)
