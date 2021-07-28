@@ -107,7 +107,6 @@ class QClient(BaseClient):
         request_args = {"request": request}
         if post_params:
             request_args.update({"data": body.toJson()})
-        print(request.url())
         response: QgsNetworkReplyContent = requests_method(**request_args)
 
         self.response_time = time.time() - start

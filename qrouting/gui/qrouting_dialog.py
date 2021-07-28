@@ -51,6 +51,8 @@ from ..util.util import maybe_transform_wgs84
 from ..util.resources import _locate_resource
 from ..core.client import QClient
 from ..core.routing import _get_profile_from_button_name
+from ..ui.layer_select_dialog import LayerSelectDialog
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 rp_path = os.path.join(current_dir, "../third_party", "routing-py")
 sys.path.append(rp_path)
@@ -73,6 +75,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.waypoint_widget.remove_wp.clicked.connect(self._remove_point)
         self.waypoint_widget.move_up.clicked.connect(self._move_item_up)
         self.waypoint_widget.move_down.clicked.connect(self._move_item_down)
+        self.waypoint_widget.add_from_layer.clicked.connect(self._open_layer_selection)
 
     def result(self, result):
         if result:
@@ -176,7 +179,6 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.profile_widget.profile_bus.setIcon(QIcon(_locate_resource("bus.svg")))
 
     def get_profile(self):
-
         for button in self.profile_buttons:
             if button.isChecked():
                 button_name = button.objectName()
@@ -201,3 +203,17 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                 self.waypoint_widget.coord_table.setItem(row - 1, i, self.waypoint_widget.coord_table.takeItem(row + 1, i))
                 self.waypoint_widget.coord_table.setCurrentCell(row - 1, column)
             self.waypoint_widget.coord_table.removeRow(row + 1)
+
+    def _open_layer_selection(self):
+        self.config_dlg = LayerSelectDialog(parent=self)
+        self.config_dlg.layer_selected.connect(self._handle_layer)
+        self.config_dlg.exec_()
+
+    def _handle_layer(self, layer):
+        for feature in layer.getFeatures():
+            point = maybe_transform_wgs84(
+                point=feature.geometry().asPoint(),
+                own_crs=layer.crs(),
+                direction=QgsCoordinateTransform.ForwardTransform
+            )
+            self._add_to_table(point)
