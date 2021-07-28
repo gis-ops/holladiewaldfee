@@ -59,6 +59,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 rp_path = os.path.join(current_dir, "../third_party", "routing-py")
 sys.path.append(rp_path)
 from routingpy import get_router_by_name
+from routingpy.direction import Direction
 
 
 class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
@@ -82,31 +83,17 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
     def run(self, result: int) -> None:
         """Run main functionality after pressing OK."""
         if result:
-            project = QgsProject.instance()
             locations = self.get_locations_from_table()
-
             selected_provider = self.provider.currentText()
-            base_url = "http://localhost:8002" if selected_provider == "Valhalla" else "http://localhost:5000"
-            profile = self.get_profile(selected_provider)
+            selected_method = self.provider.currentText()
+            selected_profile = self.get_profile(selected_provider)
+            directions = self.get_directions(selected_provider,
+                                             selected_profile,
+                                             selected_method,
+                                             locations
+                                             )
 
-            router = get_router_by_name(selected_provider.lower())(base_url=base_url, client=QClient)
-            direction_args = {"locations": locations, "profile": profile}
-            if selected_provider == "OSRM":
-                direction_args.update({"overview": "full"})
-            directions = router.directions(**direction_args)
-            layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
-                                       f"{selected_provider} Route",
-                                       "memory")
-
-            line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
-            feature = QgsFeature()
-            feature.setGeometry(QgsGeometry(line))
-
-            layer_out.dataProvider().addFeature(feature)
-            layer_out.renderer().symbol().setWidth(1)
-            layer_out.updateExtents()
-            project.addMapLayer(layer_out)
-            self._zoom_to_extent(layer_out, project)
+            self.add_result_layer(selected_provider, selected_profile, directions)
 
     def _zoom_to_extent(self, layer: QgsVectorLayer, project: QgsProject) -> None:
         """Zoom to the extent of a layer."""
@@ -229,3 +216,32 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         locations = [[point.x(), point.y()] for point in points]
 
         return locations
+
+    @staticmethod
+    def get_directions(provider: str, profile: str, method: str, locations: List[List[float]]) -> Direction:
+        """Get the directions between locations from the specified provider with the specified method."""
+        base_url = "http://localhost:8002" if provider == "Valhalla" else "http://localhost:5000"
+        router = get_router_by_name(provider.lower())(base_url=base_url, client=QClient)
+
+        direction_args = {"locations": locations, "profile": profile}
+        if provider == "OSRM":
+            direction_args.update({"overview": "full"})
+        directions = router.directions(**direction_args)
+
+        return directions
+
+    def add_result_layer(self, provider: str, profile: str, directions: Direction) -> None:
+        project = QgsProject.instance()
+        layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
+                                   f"{provider} Route ({profile})",
+                                   "memory")
+
+        line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
+        feature = QgsFeature()
+        feature.setGeometry(QgsGeometry(line))
+
+        layer_out.dataProvider().addFeature(feature)
+        layer_out.renderer().symbol().setWidth(1)
+        layer_out.updateExtents()
+        project.addMapLayer(layer_out)
+        self._zoom_to_extent(layer_out, project)
