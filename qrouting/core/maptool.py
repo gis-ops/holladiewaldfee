@@ -16,18 +16,40 @@ CUSTOM_CURSOR = QCursor(
 
 
 class PointTool(QgsMapToolEmitPoint):
+    def __init__(self, canvas):
+        """
+        :param canvas: current map canvas
+        :type canvas: QgsMapCanvas
+        """
+        self.canvas = canvas
+        QgsMapToolEmitPoint.__init__(self, self.canvas)
 
-    canvasClicked = pyqtSignal('QgsPointXY')
+        self.crsSrc = self.canvas.mapSettings().destinationCrs()
+        self.previous_point = None
+        self.points = []
+        self.reset()
+
+    def reset(self):
+        """reset captured points."""
+        self.points = []
+
+    canvasClicked = pyqtSignal(['QgsPointXY', int])
 
     def canvasReleaseEvent(self, event: QgsMapMouseEvent) -> None:
         # Get the click and emit a transformed point
-
-        crs_canvas = self.canvas().mapSettings().destinationCrs()
-        self.canvasClicked.emit(to_wgs84(
-            event.mapPoint(), crs_canvas, QgsCoordinateTransform.ForwardTransform
+        new_point = to_wgs84(
+            event.mapPoint(), self.crsSrc, QgsCoordinateTransform.ForwardTransform
             )
-        )
+        # list_point = self.toMapCoordinates(new_point)
+        self.points.append(new_point)
+        self.canvasClicked.emit(new_point, self.points.index(new_point))
 
-    def activate(self) -> None:
-        super().activate()
-        QApplication.setOverrideCursor(CUSTOM_CURSOR)
+    doubleClicked = pyqtSignal()
+
+    def canvasDoubleClickEvent(self, e):
+        """Ends point adding and deletes markers from map canvas."""
+        self.doubleClicked.emit()
+
+    def deactivate(self):
+        super(PointTool, self).deactivate()
+        self.deactivated.emit()

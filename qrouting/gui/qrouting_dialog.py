@@ -23,8 +23,8 @@
 """
 
 from qgis.PyQt import QtWidgets
-from qgis.PyQt.QtGui import QIcon
-from qgis.gui import QgisInterface, QgsMapTool, QgsTableWidgetItem
+from qgis.PyQt.QtGui import QIcon, QTextDocument
+from qgis.gui import QgisInterface, QgsMapTool, QgsTableWidgetItem, QgsMapCanvasAnnotationItem
 from PyQt5.QtWidgets import QApplication
 
 import json
@@ -34,17 +34,17 @@ from typing import List, Union
 from qgis.core import (
                         QgsProject,
                         QgsCoordinateTransform,
-                        QgsCoordinateReferenceSystem,
                         QgsPointXY,
                         QgsVectorLayer,
                         QgsLineString,
                         QgsFeature,
                         QgsRectangle,
                         QgsPoint,
-                        QgsGeometry
+                        QgsGeometry,
+                        QgsTextAnnotation
                         )
 from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.PyQt.QtCore import QPersistentModelIndex
+from qgis.PyQt.QtCore import QPersistentModelIndex, QSizeF, QPointF
 
 from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
@@ -68,14 +68,16 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         super(QRoutingDialog, self).__init__(parent)
         self.setupUi(self)
         self.iface = iface
-
+        self.project = QgsProject.instance()
+        self.annotations = []
         self.point_tool = PointTool(iface.mapCanvas())
         self.last_map_tool: QgsMapTool = None
         self.set_icons()
 
         self.finished.connect(self.run)
-        self.waypoint_widget.add_wp.clicked.connect(self._add_point)
-        self.waypoint_widget.remove_wp.clicked.connect(self._remove_point)
+        self.waypoint_widget.add_wp.clicked.connect(self._on_point_tool_init)
+        self.waypoint_widget.remove_wp.clicked.connect(self._clear_table)
+
         self.waypoint_widget.move_up.clicked.connect(self._move_item_up)
         self.waypoint_widget.move_down.clicked.connect(self._move_item_down)
         self.waypoint_widget.add_from_layer.clicked.connect(self._open_layer_selection)
@@ -112,14 +114,46 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
             QgsRectangle(*_bbox)
         )
 
-    def _add_point(self) -> None:
+    def _on_point_tool_init(self) -> None:
         self.hide()
+        self.waypoint_widget.coord_table.setRowCount(0)
+        self._clear_annotations()
+        self.last_maptool = self.iface.mapCanvas().mapTool()
         self.point_tool = PointTool(self.iface.mapCanvas())
         self.iface.mapCanvas().setMapTool(self.point_tool)
-        self.point_tool.canvasClicked.connect(self._add_to_table)
-        self.point_tool.deactivated.connect(
-            lambda: QApplication.restoreOverrideCursor()
-        )
+        self.point_tool.canvasClicked.connect(self._on_map_click)
+        self.point_tool.doubleClicked.connect(self._on_map_doubleclick)
+
+    def _on_map_click(self, point: QgsPointXY, idx: int) -> None:
+        self._add_to_table(point)
+        annotation_point = to_wgs84(point, self.project.crs(), QgsCoordinateTransform.ReverseTransform)
+
+        annotation = self._point_tool_annotate_point(annotation_point, idx)
+        self.annotations.append(annotation)
+        self.project.annotationManager().addAnnotation(annotation)
+
+    def _on_map_doubleclick(self):
+        self.point_tool.canvasClicked.disconnect()
+        self.point_tool.doubleClicked.disconnect()
+        QApplication.restoreOverrideCursor()
+        self.show()
+        self.iface.mapCanvas().setMapTool(self.last_maptool)
+
+    def _point_tool_annotate_point(self, point, idx):
+        annotation = QgsTextAnnotation()
+
+        c = QTextDocument()
+        html = "<strong>" + str(idx) + "</strong>"
+        c.setHtml(html)
+
+        annotation.setDocument(c)
+
+        annotation.setFrameSizeMm(QSizeF(5, 8))
+        annotation.setFrameOffsetFromReferencePointMm(QPointF(5, 5))
+        annotation.setMapPosition(point)
+        annotation.setMapPositionCrs(self.iface.mapCanvas().mapSettings().destinationCrs())
+
+        return QgsMapCanvasAnnotationItem(annotation, self.iface.mapCanvas()).annotation()
 
     def _add_to_table(self, point: QgsPointXY) -> None:
         row_index = self.waypoint_widget.coord_table.rowCount()
@@ -127,13 +161,14 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.waypoint_widget.coord_table.setItem(row_index, 0, QgsTableWidgetItem(f"{point.y():.6f}"))
         self.waypoint_widget.coord_table.setItem(row_index, 1, QgsTableWidgetItem(f"{point.x():.6f}"))
         self.waypoint_widget.coord_table.resizeColumnsToContents()
-        self.iface.mapCanvas().unsetMapTool(self.point_tool)
-        self.show()
 
-    def _remove_point(self) -> None:
+    def _clear_table(self) -> None:
         row_indices = set(QPersistentModelIndex(index) for index in self.waypoint_widget.coord_table.selectedIndexes())
-        for row_index in row_indices:
-            self.waypoint_widget.coord_table.removeRow(row_index.row())
+        if row_indices:
+            for row_index in row_indices:
+                self.waypoint_widget.coord_table.removeRow(row_index.row())
+        else:
+            self.waypoint_widget.coord_table.setRowCount(0)
 
     def set_icons(self) -> None:
         # default QGIS icons
@@ -173,7 +208,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
 
     def _move_item_up(self) -> None:
         row = self.waypoint_widget.coord_table.currentRow()
-        column = self.waypoint_widget.coord_table.currentColumn();
+        column = self.waypoint_widget.coord_table.currentColumn()
         if row > 0:
             self.waypoint_widget.coord_table.insertRow(row - 1)
             for i in range(self.waypoint_widget.coord_table.columnCount()):
@@ -205,7 +240,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(),
                                  'QuickAPI error',
-                                 e)
+                                 str(e))
             return
 
         points = [QgsPointXY(location["lon"], location["lat"]) for location in locations]
@@ -231,7 +266,6 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         return directions
 
     def add_result_layer(self, provider: str, profile: str, directions: Direction) -> None:
-        project = QgsProject.instance()
         layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
                                    f"{provider} Route ({profile})",
                                    "memory")
@@ -243,5 +277,15 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         layer_out.dataProvider().addFeature(feature)
         layer_out.renderer().symbol().setWidth(1)
         layer_out.updateExtents()
-        project.addMapLayer(layer_out)
-        self._zoom_to_extent(layer_out, project)
+        self.project.addMapLayer(layer_out)
+        self._zoom_to_extent(layer_out, self.project)
+
+    def _clear_annotations(self):
+        for annotation in self.annotations:
+            if annotation in self.project.annotationManager().annotations():
+                self.project.annotationManager().removeAnnotation(annotation)
+        self.annotations = []
+
+    def closeEvent(self, event):
+        for annotation in self.project.annotationManager().annotations():
+            self.project.annotationManager().removeAnnotation(annotation)
