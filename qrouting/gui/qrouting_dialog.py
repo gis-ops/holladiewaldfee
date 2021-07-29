@@ -24,10 +24,9 @@
 
 from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtGui import QIcon, QTextDocument
-from qgis.gui import QgisInterface, QgsMapTool, QgsTableWidgetItem, QgsMapCanvasAnnotationItem
+from qgis.gui import QgisInterface, QgsMapTool, QgsMapCanvasAnnotationItem
 from PyQt5.QtWidgets import QApplication
 
-import json
 import os.path
 import sys
 from typing import List, Union
@@ -43,8 +42,8 @@ from qgis.core import (
                         QgsGeometry,
                         QgsTextAnnotation
                         )
-from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.PyQt.QtCore import QPersistentModelIndex, QSizeF, QPointF
+from qgis.PyQt.QtWidgets import QMessageBox, QComboBox
+from qgis.PyQt.QtCore import QSizeF, QPointF
 
 from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
@@ -52,7 +51,6 @@ from ..util.util import to_wgs84
 from ..util.resources import _locate_resource
 from ..core.client import QClient
 from ..core.routing import _get_profile_from_button_name
-from ..ui.layer_select_dialog import LayerSelectDialog
 from ..core.exceptions import InsufficientPoints
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -76,11 +74,11 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
 
         self.finished.connect(self.run)
         self.waypoint_widget.add_wp.clicked.connect(self._on_point_tool_init)
-        self.waypoint_widget.remove_wp.clicked.connect(self._clear_table)
+        self.waypoint_widget.remove_wp.clicked.connect(self.waypoint_widget.clear_table)
 
-        self.waypoint_widget.move_up.clicked.connect(self._move_item_up)
-        self.waypoint_widget.move_down.clicked.connect(self._move_item_down)
-        self.waypoint_widget.add_from_layer.clicked.connect(self._open_layer_selection)
+        self.waypoint_widget.move_up.clicked.connect(self.waypoint_widget.move_item_up)
+        self.waypoint_widget.move_down.clicked.connect(self.waypoint_widget.move_item_down)
+        self.waypoint_widget.add_from_layer.clicked.connect(self.waypoint_widget.open_layer_selection)
 
     def run(self, result: int) -> None:
         """Run main functionality after pressing OK."""
@@ -125,7 +123,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.point_tool.doubleClicked.connect(self._on_map_doubleclick)
 
     def _on_map_click(self, point: QgsPointXY, idx: int) -> None:
-        self._add_to_table(point)
+        self.waypoint_widget.add_to_table(point)
         annotation_point = to_wgs84(point, self.project.crs(), QgsCoordinateTransform.ReverseTransform)
 
         annotation = self._point_tool_annotate_point(annotation_point, idx)
@@ -155,21 +153,6 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
 
         return QgsMapCanvasAnnotationItem(annotation, self.iface.mapCanvas()).annotation()
 
-    def _add_to_table(self, point: QgsPointXY) -> None:
-        row_index = self.waypoint_widget.coord_table.rowCount()
-        self.waypoint_widget.coord_table.insertRow(row_index)
-        self.waypoint_widget.coord_table.setItem(row_index, 0, QgsTableWidgetItem(f"{point.y():.6f}"))
-        self.waypoint_widget.coord_table.setItem(row_index, 1, QgsTableWidgetItem(f"{point.x():.6f}"))
-        self.waypoint_widget.coord_table.resizeColumnsToContents()
-
-    def _clear_table(self) -> None:
-        row_indices = set(QPersistentModelIndex(index) for index in self.waypoint_widget.coord_table.selectedIndexes())
-        if row_indices:
-            for row_index in row_indices:
-                self.waypoint_widget.coord_table.removeRow(row_index.row())
-        else:
-            self.waypoint_widget.coord_table.setRowCount(0)
-
     def set_icons(self) -> None:
         # default QGIS icons
         add_point_icon = QIcon(":images/themes/default/symbologyAdd.svg")
@@ -191,44 +174,10 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.profile_widget.profile_bus.setIcon(QIcon(_locate_resource("bus.svg")))
 
     def get_profile(self, provider: str) -> str:
-        for button in self.profile_buttons:
+        for button in self.profile_widget.profile_buttons:
             if button.isChecked():
                 button_name = button.objectName()
                 return _get_profile_from_button_name(button_name, provider)
-
-    def _move_item_down(self) -> None:  # https://stackoverflow.com/a/11930967/10955832
-        row = self.waypoint_widget.coord_table.currentRow()
-        column = self.waypoint_widget.coord_table.currentColumn()
-        if row < self.waypoint_widget.coord_table.rowCount()-1:
-            self.waypoint_widget.coord_table.insertRow(row+2)
-            for i in range(self.waypoint_widget.coord_table.columnCount()):
-                self.waypoint_widget.coord_table.setItem(row+2, i, self.waypoint_widget.coord_table.takeItem(row, i))
-                self.waypoint_widget.coord_table.setCurrentCell(row+2, column)
-            self.waypoint_widget.coord_table.removeRow(row)
-
-    def _move_item_up(self) -> None:
-        row = self.waypoint_widget.coord_table.currentRow()
-        column = self.waypoint_widget.coord_table.currentColumn()
-        if row > 0:
-            self.waypoint_widget.coord_table.insertRow(row - 1)
-            for i in range(self.waypoint_widget.coord_table.columnCount()):
-                self.waypoint_widget.coord_table.setItem(row - 1, i, self.waypoint_widget.coord_table.takeItem(row + 1, i))
-                self.waypoint_widget.coord_table.setCurrentCell(row - 1, column)
-            self.waypoint_widget.coord_table.removeRow(row + 1)
-
-    def _open_layer_selection(self) -> None:
-        self.config_dlg = LayerSelectDialog(parent=self)
-        self.config_dlg.layer_selected.connect(self._handle_layer)
-        self.config_dlg.exec_()
-
-    def _handle_layer(self, layer: QgsVectorLayer) -> None:
-        for feature in layer.getFeatures():
-            point = to_wgs84(
-                point=feature.geometry().asPoint(),
-                own_crs=layer.crs(),
-                direction=QgsCoordinateTransform.ForwardTransform
-            )
-            self._add_to_table(point)
 
     def get_locations_from_table(self) -> Union[None, List[List[float]]]:
         rows = self.waypoint_widget.coord_table.rowCount()

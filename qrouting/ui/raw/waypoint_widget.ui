@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>296</width>
+    <width>378</width>
     <height>325</height>
    </rect>
   </property>
@@ -24,7 +24,7 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>270</width>
+        <width>352</width>
         <height>299</height>
        </rect>
       </property>
@@ -42,7 +42,7 @@
               <rect>
                <x>0</x>
                <y>10</y>
-               <width>241</width>
+               <width>331</width>
                <height>261</height>
               </rect>
              </property>
@@ -118,6 +118,14 @@
                   <column>
                    <property name="text">
                     <string>Lon</string>
+                   </property>
+                  </column>
+                  <column>
+                   <property name="text">
+                    <string>Type</string>
+                   </property>
+                   <property name="toolTip">
+                    <string>Specify the location type.</string>
                    </property>
                   </column>
                  </widget>
