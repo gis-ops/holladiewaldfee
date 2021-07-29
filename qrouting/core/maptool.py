@@ -1,13 +1,9 @@
 from PyQt5.QtCore import pyqtSignal
 from qgis.PyQt.QtGui import QIcon
-from PyQt5.QtGui import QCursor, QPixmap
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtGui import QCursor
 
-from qgis.gui import QgsMapToolEmitPoint, QgsVertexMarker, QgsMapMouseEvent
-from qgis.core import (QgsCoordinateReferenceSystem,
-                       QgsCoordinateTransform,
-                       QgsProject
-                       )
+from qgis.gui import QgsMapToolEmitPoint, QgsMapMouseEvent
+from qgis.core import QgsCoordinateTransform
 from ..util.util import to_wgs84
 
 CUSTOM_CURSOR = QCursor(

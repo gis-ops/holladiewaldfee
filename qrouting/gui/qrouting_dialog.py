@@ -72,13 +72,15 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.last_map_tool: QgsMapTool = None
         self.set_icons()
 
-        self.finished.connect(self.run)
         self.waypoint_widget.add_wp.clicked.connect(self._on_point_tool_init)
         self.waypoint_widget.remove_wp.clicked.connect(self.waypoint_widget.clear_table)
 
         self.waypoint_widget.move_up.clicked.connect(self.waypoint_widget.move_item_up)
         self.waypoint_widget.move_down.clicked.connect(self.waypoint_widget.move_item_down)
         self.waypoint_widget.add_from_layer.clicked.connect(self.waypoint_widget.open_layer_selection)
+
+        self.provider.currentTextChanged.connect(self.waypoint_widget.update_waypoint_types)
+        self.finished.connect(self.run)
 
     def run(self, result: int) -> None:
         """Run main functionality after pressing OK."""
@@ -184,8 +186,17 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         locations = []
         try:
             for row in range(rows):
-                lat, lon = self.waypoint_widget.coord_table.item(row, 0), self.waypoint_widget.coord_table.item(row, 1)
-                locations.append({"lat": float(lat.text()), "lon": float(lon.text())})
+                lat, lon = (
+                    self.waypoint_widget.coord_table.item(row, 0),
+                    self.waypoint_widget.coord_table.item(row, 1),
+                                          )
+                location = {"lat": float(lat.text()), "lon": float(lon.text())}
+                widget = self.waypoint_widget.coord_table.cellWidget(row, 2)
+                if widget.isEnabled():
+                    location.update({"type": widget.currentText()})
+                print(location)
+                locations.append(location)
+
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(),
                                  'QuickAPI error',

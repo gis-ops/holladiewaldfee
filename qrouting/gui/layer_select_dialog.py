@@ -1,4 +1,4 @@
-from .layer_select_ui import Ui_Dialog
+from qrouting.ui.layer_select_ui import Ui_Dialog
 from qgis.PyQt.QtWidgets import QDialog
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.core import QgsMapLayerProxyModel
