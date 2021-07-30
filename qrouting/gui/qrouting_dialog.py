@@ -26,10 +26,10 @@ from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtGui import QIcon, QTextDocument
 from qgis.gui import QgisInterface, QgsMapTool, QgsMapCanvasAnnotationItem
 from PyQt5.QtWidgets import QApplication
-
+from PyQt5.QtCore import QEvent
 import os.path
 import sys
-from typing import List, Union
+from typing import List, Union, Type
 from qgis.core import (
                         QgsProject,
                         QgsCoordinateTransform,
@@ -51,7 +51,7 @@ from ..util.util import to_wgs84
 from ..util.resources import _locate_resource
 from ..core.client import QClient
 from ..core.routing import _get_profile_from_button_name
-from ..core.exceptions import InsufficientPoints
+from ..core.exceptions import InsufficientPoints, QRoutingError
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 rp_path = os.path.join(current_dir, "../third_party", "routing-py")
@@ -184,44 +184,46 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                 button_name = button.objectName()
                 return _get_profile_from_button_name(button_name, provider)
 
-    def get_locations_from_table(self) -> Union[None, List[List[float]]]:
+    def get_locations_from_table(self) -> List[Union[List[float], Valhalla.Waypoint]]:
         rows = self.waypoint_widget.coord_table.rowCount()
         locations = []
-        try:
-            for row in range(rows):
-                lat, lon = (
-                    self.waypoint_widget.coord_table.item(row, 0),
-                    self.waypoint_widget.coord_table.item(row, 1),
-                                          )
-                location = {"lat": float(lat.text()), "lon": float(lon.text())}
-                widget = self.waypoint_widget.coord_table.cellWidget(row, 2)
-                if widget.isEnabled():
-                    location.update({"type": widget.currentText()})
 
-                locations.append(location)
+        for idx, row in enumerate(range(rows)):
+            lat, lon = (
+                self.waypoint_widget.coord_table.item(row, 0),
+                self.waypoint_widget.coord_table.item(row, 1),
+                                      )
+            point = [float(lon.text()), float(lat.text())]
+            widget = self.waypoint_widget.coord_table.cellWidget(row, 2)
 
-        except Exception as e:
-            QMessageBox.critical(self.iface.mainWindow(),
-                                 'QuickAPI error',
-                                 str(e))
-            return
+            if widget.isEnabled():
+                type_ = widget.currentText()
+                if idx == 0 or idx == rows - 1:
+                    if type_ != "break":
+                        QMessageBox.critical(self.iface.mainWindow(),
+                                             "WayPoint type error",
+                                             f"First and last locations must be of type 'break', not {type_}")
+                        raise QRoutingError("WayPoint type error")
+                point = Valhalla.Waypoint(point, type=type_)
 
-        points = [QgsPointXY(location["lon"], location["lat"]) for location in locations]
+            locations.append(point)
 
-        if len(points) < 2:
+        if len(locations) < 2:
             raise InsufficientPoints("Please specify at least two points!")
-
-        locations = [[point.x(), point.y()] for point in points]
 
         return locations
 
     @staticmethod
-    def get_directions(provider: str, profile: str, method: str, locations: List[List[float]]) -> Direction:
+    def get_directions(provider: str,
+                       profile: str,
+                       method: str,
+                       locations: List[Union[List[float], Valhalla.Waypoint]]) -> Direction:
         """Get the directions between locations from the specified provider with the specified method."""
         base_url = "http://localhost:8002" if provider == "Valhalla" else "http://localhost:5000"
         router = get_router_by_name(provider.lower())(base_url=base_url, client=QClient)
 
         direction_args = {"locations": locations, "profile": profile}
+        print(direction_args)
         if provider == "OSRM":
             direction_args.update({"overview": "full"})
         directions = router.directions(**direction_args)
@@ -249,11 +251,11 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                 self.project.annotationManager().removeAnnotation(annotation)
         self.annotations = []
 
-    def closeEvent(self, event):
+    def closeEvent(self, event: Type[QEvent]):
         for annotation in self.project.annotationManager().annotations():
             self.project.annotationManager().removeAnnotation(annotation)
 
-    def on_provider_change(self, provider):
+    def on_provider_change(self, provider: str):
         self.selected_provider = provider
         self.waypoint_widget.update_waypoint_types(provider)
 
