@@ -4,10 +4,13 @@ from PyQt5.QtCore import pyqtSignal
 from qgis.core import QgsPointXY, QgsVectorLayer, QgsCoordinateTransform
 from qgis.gui import QgsTableWidgetItem
 from qgis.PyQt.QtCore import QPersistentModelIndex
+from qgis.core import Qgis
 from qrouting.gui.cell_widget import WaypointTypeWidget
 from qrouting.gui.layer_select_dialog import LayerSelectDialog
 from typing import Union
 from ..util.util import to_wgs84
+
+from ..util.ui import VALHALLA_LOCATION_TYPES
 
 
 class WayPointWidget(Ui_WaypointWidget, QWidget):
@@ -17,6 +20,7 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
 
     def __init__(self, parent=None):
         super(WayPointWidget, self).__init__(parent)
+        self.parent = parent
         self.setupUi(self)
         self.coord_table.setSizeAdjustPolicy(
             QAbstractScrollArea.AdjustToContents
@@ -36,6 +40,11 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
         if waypoint_type:
             widget = self.coord_table.cellWidget(row_index, 2)
             type_index = widget.findText(waypoint_type)
+
+            if type_index == -1:
+                self.parent.iface.messageBar().pushMessage(
+                    f"Faulty Waypoint Type", f"Type must be one of {VALHALLA_LOCATION_TYPES}, not {waypoint_type}",
+                    level=Qgis.Warning, duration=3)
             widget.setCurrentIndex(type_index)
         self.coord_table.resizeColumnsToContents()
         self.point_added.emit()
