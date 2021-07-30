@@ -204,7 +204,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                         QMessageBox.critical(self.iface.mainWindow(),
                                              "WayPoint type error",
                                              f"First and last locations must be of type 'break', not {type_}")
-                        raise FaultyWayPointType(f"WayPoint type must be one of {str(VALHALLA_LOCATION_TYPES)}, not {type_}")
+                        raise FaultyWayPointType(f"First and last locations must be of type 'break', not {type_}")
                 point = Valhalla.Waypoint(point, type=type_)
 
             locations.append(point)
