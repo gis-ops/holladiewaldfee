@@ -1,7 +1,7 @@
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, QEvent
 from qgis.PyQt.QtGui import QIcon
 from PyQt5.QtGui import QCursor
-
+from typing import Type
 from qgis.gui import QgsMapToolEmitPoint, QgsMapMouseEvent
 from qgis.core import QgsCoordinateTransform
 from ..util.util import to_wgs84
@@ -25,7 +25,7 @@ class PointTool(QgsMapToolEmitPoint):
         self.points = []
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         """reset captured points."""
         self.points = []
 
@@ -42,10 +42,10 @@ class PointTool(QgsMapToolEmitPoint):
 
     doubleClicked = pyqtSignal()
 
-    def canvasDoubleClickEvent(self, e):
+    def canvasDoubleClickEvent(self, e: Type[QEvent]) -> None:
         """Ends point adding and deletes markers from map canvas."""
         self.doubleClicked.emit()
 
-    def deactivate(self):
+    def deactivate(self) -> None:
         super(PointTool, self).deactivate()
         self.deactivated.emit()

@@ -245,19 +245,19 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.project.addMapLayer(layer_out)
         self._zoom_to_extent(layer_out, self.project)
 
-    def _clear_annotations(self):
+    def _clear_annotations(self) -> None:
         for annotation in self.annotations:
             if annotation in self.project.annotationManager().annotations():
                 self.project.annotationManager().removeAnnotation(annotation)
         self.annotations = []
 
-    def closeEvent(self, event: Type[QEvent]):
+    def closeEvent(self, event: Type[QEvent]) -> None:
         for annotation in self.project.annotationManager().annotations():
             self.project.annotationManager().removeAnnotation(annotation)
 
-    def on_provider_change(self, provider: str):
+    def on_provider_change(self, provider: str) -> None:
         self.selected_provider = provider
         self.waypoint_widget.update_waypoint_types(provider)
 
-    def check_provider(self):
+    def check_provider(self) -> None:
         self.waypoint_widget.update_waypoint_types(self.selected_provider)
