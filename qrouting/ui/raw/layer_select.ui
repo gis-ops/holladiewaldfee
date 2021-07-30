@@ -19,6 +19,9 @@
      <item>
       <widget class="QgsMapLayerComboBox" name="layer_choice"/>
      </item>
+     <item>
+      <widget class="QgsFieldComboBox" name="field_choice"/>
+     </item>
     </layout>
    </item>
    <item>
@@ -34,6 +37,11 @@
   </layout>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>QgsFieldComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qgsfieldcombobox.h</header>
+  </customwidget>
   <customwidget>
    <class>QgsMapLayerComboBox</class>
    <extends>QComboBox</extends>

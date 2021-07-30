@@ -22,6 +22,9 @@ class Ui_Dialog(object):
         self.layer_choice = QgsMapLayerComboBox(Dialog)
         self.layer_choice.setObjectName("layer_choice")
         self.verticalLayout_2.addWidget(self.layer_choice)
+        self.field_choice = QgsFieldComboBox(Dialog)
+        self.field_choice.setObjectName("field_choice")
+        self.verticalLayout_2.addWidget(self.field_choice)
         self.verticalLayout.addLayout(self.verticalLayout_2)
         self.buttonBox = QtWidgets.QDialogButtonBox(Dialog)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
@@ -37,4 +40,5 @@ class Ui_Dialog(object):
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
+from qgsfieldcombobox import QgsFieldComboBox
 from qgsmaplayercombobox import QgsMapLayerComboBox

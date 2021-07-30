@@ -86,11 +86,13 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
 
     def open_layer_selection(self) -> None:
         layer_dlg = LayerSelectDialog(parent=self)
-        layer_dlg.layer_selected.connect(self._handle_layer)
+        layer_dlg.layer_and_field_selected.connect(self._handle_layer)
         layer_dlg.exec_()
 
-    def _handle_layer(self, layer: QgsVectorLayer) -> None:
+    def _handle_layer(self, list) -> None:
 
+        layer = list[0]
+        field = list[1]
         for idx, feature in enumerate(layer.getFeatures()):
             point = to_wgs84(
                 point=feature.geometry().asPoint(),
@@ -98,7 +100,7 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
                 direction=QgsCoordinateTransform.ForwardTransform
             )
             try:
-                type_ = feature.attribute("WayPointType")
+                type_ = feature.attribute(field)
             except KeyError:
                 type_ = None
             self.add_to_table(point, type_)
