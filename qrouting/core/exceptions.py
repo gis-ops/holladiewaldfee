@@ -17,3 +17,7 @@ class ProfileNotSupportedError(QRoutingError):
 
 class InsufficientPoints(QRoutingError):
     """Is raised when the points table has been populated with less than two points."""
+
+
+class FaultyWayPointType(QRoutingError):
+    """Is raised when a WayPoint type is not in ['break', 'via', 'through', 'breakthrough']"""

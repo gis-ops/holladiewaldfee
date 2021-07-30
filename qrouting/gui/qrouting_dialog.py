@@ -49,9 +49,10 @@ from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
 from ..util.util import to_wgs84
 from ..util.resources import _locate_resource
+from ..util.ui import VALHALLA_LOCATION_TYPES
 from ..core.client import QClient
 from ..core.routing import _get_profile_from_button_name
-from ..core.exceptions import InsufficientPoints, QRoutingError
+from ..core.exceptions import InsufficientPoints, FaultyWayPointType
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 rp_path = os.path.join(current_dir, "../third_party", "routing-py")
@@ -203,7 +204,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                         QMessageBox.critical(self.iface.mainWindow(),
                                              "WayPoint type error",
                                              f"First and last locations must be of type 'break', not {type_}")
-                        raise QRoutingError("WayPoint type error")
+                        raise FaultyWayPointType(f"WayPoint type must be one of {str(VALHALLA_LOCATION_TYPES)}, not {type_}")
                 point = Valhalla.Waypoint(point, type=type_)
 
             locations.append(point)
