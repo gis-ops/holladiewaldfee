@@ -58,6 +58,7 @@ rp_path = os.path.join(current_dir, "../third_party", "routing-py")
 sys.path.append(rp_path)
 from routingpy import get_router_by_name
 from routingpy.direction import Direction
+from routingpy.routers import Valhalla
 
 
 class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
@@ -70,6 +71,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.annotations = []
         self.point_tool = PointTool(iface.mapCanvas())
         self.last_map_tool: QgsMapTool = None
+        self.selected_provider = self.provider.currentText()
         self.set_icons()
 
         self.waypoint_widget.add_wp.clicked.connect(self._on_point_tool_init)
@@ -78,24 +80,25 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.waypoint_widget.move_up.clicked.connect(self.waypoint_widget.move_item_up)
         self.waypoint_widget.move_down.clicked.connect(self.waypoint_widget.move_item_down)
         self.waypoint_widget.add_from_layer.clicked.connect(self.waypoint_widget.open_layer_selection)
+        self.waypoint_widget.layer_added.connect(self.check_provider)
+        self.waypoint_widget.point_added.connect(self.check_provider)
 
-        self.provider.currentTextChanged.connect(self.waypoint_widget.update_waypoint_types)
+        self.provider.currentTextChanged.connect(self.on_provider_change)
         self.finished.connect(self.run)
 
     def run(self, result: int) -> None:
         """Run main functionality after pressing OK."""
         if result:
             locations = self.get_locations_from_table()
-            selected_provider = self.provider.currentText()
             selected_method = self.provider.currentText()
-            selected_profile = self.get_profile(selected_provider)
-            directions = self.get_directions(selected_provider,
+            selected_profile = self.get_profile(self.selected_provider)
+            directions = self.get_directions(self.selected_provider,
                                              selected_profile,
                                              selected_method,
                                              locations
                                              )
 
-            self.add_result_layer(selected_provider, selected_profile, directions)
+            self.add_result_layer(self.selected_provider, selected_profile, directions)
 
     def _zoom_to_extent(self, layer: QgsVectorLayer, project: QgsProject) -> None:
         """Zoom to the extent of a layer."""
@@ -194,7 +197,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                 widget = self.waypoint_widget.coord_table.cellWidget(row, 2)
                 if widget.isEnabled():
                     location.update({"type": widget.currentText()})
-                print(location)
+
                 locations.append(location)
 
         except Exception as e:
@@ -249,3 +252,10 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
     def closeEvent(self, event):
         for annotation in self.project.annotationManager().annotations():
             self.project.annotationManager().removeAnnotation(annotation)
+
+    def on_provider_change(self, provider):
+        self.selected_provider = provider
+        self.waypoint_widget.update_waypoint_types(provider)
+
+    def check_provider(self):
+        self.waypoint_widget.update_waypoint_types(self.selected_provider)
