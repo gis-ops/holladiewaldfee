@@ -42,17 +42,17 @@ from qgis.core import (
                         QgsGeometry,
                         QgsTextAnnotation
                         )
-from qgis.PyQt.QtWidgets import QMessageBox, QComboBox
+from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtCore import QSizeF, QPointF
 
 from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
 from ..util.util import to_wgs84
 from ..util.resources import _locate_resource
-from ..util.ui import VALHALLA_LOCATION_TYPES
 from ..core.client import QClient
 from ..core.routing import _get_profile_from_button_name
 from ..core.exceptions import InsufficientPoints, FaultyWayPointType
+from ..core.options import STYLES
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 rp_path = os.path.join(current_dir, "../third_party", "routing-py")
@@ -87,6 +87,8 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.provider.currentTextChanged.connect(self.on_provider_change)
         self.finished.connect(self.run)
 
+        self.button_box.rejected.connect(self.on_cancel)
+
     def run(self, result: int) -> None:
         """Run main functionality after pressing OK."""
         if result:
@@ -100,6 +102,10 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                                              )
 
             self.add_result_layer(self.selected_provider, selected_profile, directions)
+
+            if self.add_layer_from_wp_check.isChecked():
+                self.new_layer_from_waypoints()
+                self.remove_all_annotations()
 
     def _zoom_to_extent(self, layer: QgsVectorLayer, project: QgsProject) -> None:
         """Zoom to the extent of a layer."""
@@ -143,17 +149,14 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.show()
         self.iface.mapCanvas().setMapTool(self.last_maptool)
 
-    def _point_tool_annotate_point(self, point, idx):
+    def _point_tool_annotate_point(self, point: QgsPoint, idx: int) -> QgsMapCanvasAnnotationItem:
         annotation = QgsTextAnnotation()
 
         c = QTextDocument()
-        html = "<strong>" + str(idx) + "</strong>"
-        c.setHtml(html)
-
+        c.setHtml(STYLES.annotation_html(idx))
         annotation.setDocument(c)
-
-        annotation.setFrameSizeMm(QSizeF(5, 8))
-        annotation.setFrameOffsetFromReferencePointMm(QPointF(5, 5))
+        annotation.setFrameSizeMm(QSizeF(STYLES.ANNOTATION.WIDTH, STYLES.ANNOTATION.HEIGHT))
+        annotation.setFrameOffsetFromReferencePointMm(QPointF(STYLES.ANNOTATION.OFFSET_X, STYLES.ANNOTATION.OFFSET_Y))
         annotation.setMapPosition(point)
         annotation.setMapPositionCrs(self.iface.mapCanvas().mapSettings().destinationCrs())
 
@@ -189,13 +192,9 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         rows = self.waypoint_widget.coord_table.rowCount()
         locations = []
 
-        for idx, row in enumerate(range(rows)):
-            lat, lon = (
-                self.waypoint_widget.coord_table.item(row, 0),
-                self.waypoint_widget.coord_table.item(row, 1),
-                                      )
-            point = [float(lon.text()), float(lat.text())]
-            widget = self.waypoint_widget.coord_table.cellWidget(row, 2)
+        for idx, lat, lon, widget in self.waypoint_widget.get_all_rows():
+
+            point = [lon, lat]
 
             if widget.isEnabled():
                 type_ = widget.currentText()
@@ -224,7 +223,6 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         router = get_router_by_name(provider.lower())(base_url=base_url, client=QClient)
 
         direction_args = {"locations": locations, "profile": profile}
-        print(direction_args)
         if provider == "OSRM":
             direction_args.update({"overview": "full"})
         directions = router.directions(**direction_args)
@@ -241,7 +239,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         feature.setGeometry(QgsGeometry(line))
 
         layer_out.dataProvider().addFeature(feature)
-        layer_out.renderer().symbol().setWidth(1)
+        layer_out.renderer().symbol().setWidth(STYLES.LINE.SIZE)
         layer_out.updateExtents()
         self.project.addMapLayer(layer_out)
         self._zoom_to_extent(layer_out, self.project)
@@ -253,6 +251,12 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.annotations = []
 
     def closeEvent(self, event: Type[QEvent]) -> None:
+        self.remove_all_annotations()
+
+    def on_cancel(self):
+        self.remove_all_annotations()
+
+    def remove_all_annotations(self):
         for annotation in self.project.annotationManager().annotations():
             self.project.annotationManager().removeAnnotation(annotation)
 
@@ -262,3 +266,19 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
 
     def check_provider(self) -> None:
         self.waypoint_widget.update_waypoint_types(self.selected_provider)
+
+    def new_layer_from_waypoints(self) -> None:
+        layer_out = QgsVectorLayer("Point?crs=EPSG:4326",
+                                   f"Waypoints",
+                                   "memory")
+
+        features = []
+        for idx, lat, lon, widget in self.waypoint_widget.get_all_rows():
+            point = QgsPoint(lon, lat)
+            feature = QgsFeature()
+            feature.setGeometry(QgsGeometry(point))
+            features.append(feature)
+            layer_out.dataProvider().addFeature(feature)
+        layer_out.renderer().symbol().setSize(STYLES.POINT.WIDTH)
+        layer_out.updateExtents()
+        self.project.addMapLayer(layer_out)

@@ -125,3 +125,13 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
     def set_all_cell_widgets(self, boolean: bool) -> None:
         for i in range(self.coord_table.rowCount()):
             self.coord_table.cellWidget(i, 2).setEnabled(boolean)
+
+    def get_all_rows(self):
+        """Generator method for row-wise access of table items."""
+        for idx, row in enumerate(range(self.coord_table.rowCount())):
+            lat, lon = (
+                float(self.coord_table.item(row, 0).text()),
+                float(self.coord_table.item(row, 1).text()),
+            )
+            widget = self.coord_table.cellWidget(row, 2)
+            yield idx, lat, lon, widget

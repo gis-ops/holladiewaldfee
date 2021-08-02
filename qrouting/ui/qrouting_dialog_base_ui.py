@@ -55,7 +55,15 @@ class Ui_QRoutingDialogBase(object):
         self.button_box.setOrientation(QtCore.Qt.Horizontal)
         self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
         self.button_box.setObjectName("button_box")
-        self.gridLayout.addWidget(self.button_box, 5, 0, 1, 1)
+
+        self.add_layer_from_wp_check = QtWidgets.QCheckBox()
+        self.add_layer_from_wp_check.setChecked(True)
+        self.add_layer_from_wp_check.setText("New layer from waypoints")
+        self.add_layer_from_wp_check.setObjectName("add_layer_from_wp")
+        self.button_box_group = QtWidgets.QHBoxLayout(QRoutingDialogBase)
+        self.button_box_group.addWidget(self.add_layer_from_wp_check)
+        self.button_box_group.addWidget(self.button_box)
+        self.gridLayout.addLayout(self.button_box_group, 5, 0, 1, 1)
 
         self.retranslateUi(QRoutingDialogBase)
         self.button_box.accepted.connect(QRoutingDialogBase.accept)
