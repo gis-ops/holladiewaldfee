@@ -267,6 +267,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
     def on_provider_change(self, provider: str) -> None:
         self.selected_provider = provider
         self.waypoint_widget.update_waypoint_types(provider)
+        self.profile_widget.update_buttons(provider)
 
     def check_provider(self) -> None:
         self.waypoint_widget.update_waypoint_types(self.selected_provider)
@@ -298,3 +299,4 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         layer_out.renderer().symbol().setSize(STYLES.POINT.WIDTH)
         layer_out.updateExtents()
         self.project.addMapLayer(layer_out)
+
