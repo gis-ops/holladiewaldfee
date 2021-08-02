@@ -118,13 +118,14 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
 
     def update_waypoint_types(self, provider: str) -> None:
         if provider == "Valhalla":
-            self.set_all_cell_widgets(True)
+            self.set_all_cell_widgets(True, "For more information on waypoint types, please check the Valhalla documentation.")
         elif provider == "OSRM":
-            self.set_all_cell_widgets(False)
+            self.set_all_cell_widgets(False, "Waypoints are not supported for OSRM")
 
-    def set_all_cell_widgets(self, boolean: bool) -> None:
+    def set_all_cell_widgets(self, boolean: bool, tooltip: str) -> None:
         for i in range(self.coord_table.rowCount()):
             self.coord_table.cellWidget(i, 2).setEnabled(boolean)
+            self.coord_table.cellWidget(i, 2).setToolTip(tooltip)
 
     def get_all_rows(self):
         """Generator method for row-wise access of table items."""

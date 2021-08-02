@@ -40,10 +40,12 @@ from qgis.core import (
                         QgsRectangle,
                         QgsPoint,
                         QgsGeometry,
-                        QgsTextAnnotation
+                        QgsTextAnnotation,
+                        QgsField,
+                        QgsFields
                         )
 from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.PyQt.QtCore import QSizeF, QPointF
+from qgis.PyQt.QtCore import QSizeF, QPointF, QVariant
 
 from ..ui.qrouting_dialog_base_ui import Ui_QRoutingDialogBase
 from ..core.maptool import PointTool
@@ -83,6 +85,8 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.waypoint_widget.add_from_layer.clicked.connect(self.waypoint_widget.open_layer_selection)
         self.waypoint_widget.layer_added.connect(self.check_provider)
         self.waypoint_widget.point_added.connect(self.check_provider)
+
+        self.add_layer_from_wp_check.setToolTip("If checked, the points added to the table are exported as a separate point layer.")
 
         self.provider.currentTextChanged.connect(self.on_provider_change)
         self.finished.connect(self.run)
@@ -273,10 +277,22 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                                    "memory")
 
         features = []
+        if self.selected_provider == "Valhalla":
+            waypoint_type_field = QgsField('waypoint_type', QVariant.String)
+            layer_fields = QgsFields()
+            layer_fields.append(waypoint_type_field)
+            layer_out.dataProvider().addAttributes([waypoint_type_field])
+            layer_out.updateFields()
+
         for idx, lat, lon, widget in self.waypoint_widget.get_all_rows():
             point = QgsPoint(lon, lat)
-            feature = QgsFeature()
+            feature = QgsFeature(id=idx)
             feature.setGeometry(QgsGeometry(point))
+            if widget.isEnabled():
+                feature.setFields(layer_fields)
+                type_ = widget.currentText()
+                feature.setAttribute(0, type_)
+
             features.append(feature)
             layer_out.dataProvider().addFeature(feature)
         layer_out.renderer().symbol().setSize(STYLES.POINT.WIDTH)
