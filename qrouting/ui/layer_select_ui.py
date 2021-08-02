@@ -40,5 +40,7 @@ class Ui_Dialog(object):
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
+        self.layer_choice.setToolTip(_translate("Dialog", "Select a point layer from the current project."))
+        self.field_choice.setToolTip(_translate("Dialog", "Select a field to load waypoint types from (Must be in string format)."))
 from qgsfieldcombobox import QgsFieldComboBox
 from qgsmaplayercombobox import QgsMapLayerComboBox

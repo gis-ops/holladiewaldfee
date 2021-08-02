@@ -17,10 +17,18 @@
    <item>
     <layout class="QVBoxLayout" name="verticalLayout_2">
      <item>
-      <widget class="QgsMapLayerComboBox" name="layer_choice"/>
+      <widget class="QgsMapLayerComboBox" name="layer_choice">
+       <property name="toolTip">
+        <string>Select a point layer from the current project.</string>
+       </property>
+      </widget>
      </item>
      <item>
-      <widget class="QgsFieldComboBox" name="field_choice"/>
+      <widget class="QgsFieldComboBox" name="field_choice">
+       <property name="toolTip">
+        <string>Select a field to load waypoint types from (Must be in string format).</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>

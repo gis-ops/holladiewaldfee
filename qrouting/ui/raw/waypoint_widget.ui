@@ -56,6 +56,9 @@
                  <layout class="QHBoxLayout" name="horizontalLayout_2">
                   <item>
                    <widget class="QToolButton" name="add_wp">
+                    <property name="toolTip">
+                     <string>Add waypoints by clicking on the map canvas (end selection with double click).</string>
+                    </property>
                     <property name="text">
                      <string>...</string>
                     </property>
@@ -63,6 +66,9 @@
                   </item>
                   <item>
                    <widget class="QToolButton" name="remove_wp">
+                    <property name="toolTip">
+                     <string>Remove selected or all waypoints from the table.</string>
+                    </property>
                     <property name="text">
                      <string>...</string>
                     </property>
@@ -70,6 +76,9 @@
                   </item>
                   <item>
                    <widget class="QToolButton" name="add_from_layer">
+                    <property name="toolTip">
+                     <string>Load waypoints from one of the current project's point layers.</string>
+                    </property>
                     <property name="text">
                      <string>...</string>
                     </property>
@@ -90,6 +99,9 @@
                   </item>
                   <item>
                    <widget class="QToolButton" name="move_up">
+                    <property name="toolTip">
+                     <string>Move selected point one position up.</string>
+                    </property>
                     <property name="text">
                      <string>...</string>
                     </property>
@@ -97,6 +109,9 @@
                   </item>
                   <item>
                    <widget class="QToolButton" name="move_down">
+                    <property name="toolTip">
+                     <string>Move selected point one position down.</string>
+                    </property>
                     <property name="text">
                      <string>...</string>
                     </property>
