@@ -19,7 +19,6 @@ from routingpy import exceptions
 
 
 class QClient(BaseClient):
-
     def __init__(
         self,
         base_url,
@@ -74,7 +73,9 @@ class QClient(BaseClient):
             # Jitter this value by 50% and pause.
             time.sleep(delay_seconds * (random.random() + 0.5))
 
-        authed_url = self._strip_tailing_qmark(self._generate_auth_url(url, get_params))
+        authed_url = self._strip_tailing_qmark(
+            self._generate_auth_url(url, get_params)
+        )
         # final_requests_kwargs = self.kwargs
         url_object = QUrl(self.base_url + authed_url)
 
@@ -92,8 +93,9 @@ class QClient(BaseClient):
         if dry_run:
             print(
                 "url:\n{}\nParameters:\n{}\nMethod:\n{}".format(
-                    self.base_url + authed_url, json.dumps(post_params, indent=2),
-                    str(requests_method)
+                    self.base_url + authed_url,
+                    json.dumps(post_params, indent=2),
+                    str(requests_method),
                 )
             )
             return
@@ -101,7 +103,10 @@ class QClient(BaseClient):
         if post_params:
             body = QJsonDocument.fromJson(json.dumps(post_params).encode())
         request = QNetworkRequest(url_object)
-        request.setHeader(QNetworkRequest.ContentTypeHeader, self.kwargs["headers"]["Content-Type"])
+        request.setHeader(
+            QNetworkRequest.ContentTypeHeader,
+            self.kwargs["headers"]["Content-Type"],
+        )
 
         start = time.time()
         request_args = {"request": request}
@@ -121,11 +126,19 @@ class QClient(BaseClient):
 
             if error_code in _RETRIABLE_STATUSES:
                 warnings.warn(
-                    "Server down.\nRetrying for the {}{} time.".format(tried, get_ordinal(tried)),
+                    "Server down.\nRetrying for the {}{} time.".format(
+                        tried, get_ordinal(tried)
+                    ),
                     UserWarning,
                 )
 
-                return self._request(url, get_params, post_params, first_request_time, retry_counter + 1)
+                return self._request(
+                    url,
+                    get_params,
+                    post_params,
+                    first_request_time,
+                    retry_counter + 1,
+                )
 
         try:
             result = self._get_body(response)
@@ -134,7 +147,9 @@ class QClient(BaseClient):
             if self.skip_api_error:
                 warnings.warn(
                     "Router {} returned an API error with "
-                    "the following message:\n{}".format(self.__class__.__name__, response.content())
+                    "the following message:\n{}".format(
+                        self.__class__.__name__, response.content()
+                    )
                 )
                 return
             raise
@@ -146,12 +161,16 @@ class QClient(BaseClient):
 
     @staticmethod
     def _get_body(response):
-        status_code = response.attribute(QNetworkRequest.HttpStatusCodeAttribute)
+        status_code = response.attribute(
+            QNetworkRequest.HttpStatusCodeAttribute
+        )
 
         try:
             body = json.loads(bytes(response.content()))
         except json.decoder.JSONDecodeError:
-            raise exceptions.JSONParseError("Can't decode JSON response:{}".format(response.content()))
+            raise exceptions.JSONParseError(
+                "Can't decode JSON response:{}".format(response.content())
+            )
 
         if status_code == 429:
             raise exceptions.OverQueryLimit(status_code, body)

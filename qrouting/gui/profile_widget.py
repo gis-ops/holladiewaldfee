@@ -15,10 +15,7 @@ class ProfileWidget(Ui_ProfileWidget, QWidget):
             self.profile_ped,
             self.profile_car,
         ]
-        self.not_for_OSRM = [
-            self.profile_mbike,
-            self.profile_bus
-        ]
+        self.not_for_OSRM = [self.profile_mbike, self.profile_bus]
         for button in self.profile_buttons:
             name = PROFILE_MAP[button.objectName()]["repr"]
             button.setToolTip(name)

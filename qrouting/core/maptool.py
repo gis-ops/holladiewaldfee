@@ -29,13 +29,15 @@ class PointTool(QgsMapToolEmitPoint):
         """reset captured points."""
         self.points = []
 
-    canvasClicked = pyqtSignal(['QgsPointXY', int])
+    canvasClicked = pyqtSignal(["QgsPointXY", int])
 
     def canvasReleaseEvent(self, event: QgsMapMouseEvent) -> None:
         # Get the click and emit a transformed point
         new_point = to_wgs84(
-            event.mapPoint(), self.crsSrc, QgsCoordinateTransform.ForwardTransform
-            )
+            event.mapPoint(),
+            self.crsSrc,
+            QgsCoordinateTransform.ForwardTransform,
+        )
         # list_point = self.toMapCoordinates(new_point)
         self.points.append(new_point)
         self.canvasClicked.emit(new_point, self.points.index(new_point))

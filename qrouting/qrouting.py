@@ -46,11 +46,10 @@ class QRouting:
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
-        locale = QSettings().value('locale/userLocale')[0:2]
+        locale = QSettings().value("locale/userLocale")[0:2]
         locale_path = os.path.join(
-            self.plugin_dir,
-            'i18n',
-            'QRouting_{}.qm'.format(locale))
+            self.plugin_dir, "i18n", "QRouting_{}.qm".format(locale)
+        )
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
@@ -59,7 +58,7 @@ class QRouting:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&QRouting')
+        self.menu = self.tr(u"&QRouting")
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
@@ -78,7 +77,7 @@ class QRouting:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('QRouting', message)
+        return QCoreApplication.translate("QRouting", message)
 
     def add_action(
         self,
@@ -90,7 +89,7 @@ class QRouting:
         add_to_toolbar=True,
         status_tip=None,
         whats_this=None,
-        parent=None
+        parent=None,
     ):
         """Add a toolbar icon to the toolbar.
 
@@ -147,9 +146,7 @@ class QRouting:
             self.iface.addToolBarIcon(action)
 
         if add_to_menu:
-            self.iface.addPluginToVectorMenu(
-                self.menu,
-                action)
+            self.iface.addPluginToVectorMenu(self.menu, action)
 
         self.actions.append(action)
 
@@ -159,32 +156,29 @@ class QRouting:
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        icon_path = os.path.join(current_dir, 'icons/icon.png')
+        icon_path = os.path.join(current_dir, "icons/icon.png")
         self.add_action(
             icon_path,
-            text=self.tr(u'Qrouting'),
+            text=self.tr(u"Qrouting"),
             callback=self.run,
-            parent=self.iface.mainWindow())
+            parent=self.iface.mainWindow(),
+        )
 
         # will be set False in run()
         self.first_start = True
 
-
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
-            self.iface.removePluginVectorMenu(
-                self.tr(u'&QRouting'),
-                action)
+            self.iface.removePluginVectorMenu(self.tr(u"&QRouting"), action)
             self.iface.removeToolBarIcon(action)
-
 
     def run(self):
         """Run method that performs all the real work"""
 
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        if self.first_start == True:
+        if self.first_start:
             self.first_start = False
             self.dlg = QRoutingDialog(self.iface)
 

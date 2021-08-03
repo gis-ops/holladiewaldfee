@@ -1,7 +1,7 @@
 from qrouting.ui.layer_select_ui import Ui_Dialog
 from qgis.PyQt.QtWidgets import QDialog
 from qgis.PyQt.QtCore import pyqtSignal
-from qgis.core import QgsMapLayerProxyModel, QgsFieldProxyModel, QgsVectorLayer
+from qgis.core import QgsMapLayerProxyModel
 
 
 class LayerSelectDialog(QDialog, Ui_Dialog):
@@ -20,12 +20,15 @@ class LayerSelectDialog(QDialog, Ui_Dialog):
         self.field_choice.setLayer(self.selected_layer)
 
     def select_layer(self) -> None:
-        self.layer_and_field_selected.emit([self.layer_choice.currentLayer(), self.field_choice.currentField()])
+        self.layer_and_field_selected.emit(
+            [
+                self.layer_choice.currentLayer(),
+                self.field_choice.currentField(),
+            ]
+        )
         # self.field_selected.emit(self.field_choice.currentField())
         self.close()
 
     def update_field_choice_box(self, idx):
         self.selected_layer = self.layer_choice.currentLayer()
         self.field_choice.setLayer(self.selected_layer)
-
-

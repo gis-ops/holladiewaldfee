@@ -1,4 +1,9 @@
-from qgis.core import QgsPointXY, QgsCoordinateReferenceSystem, QgsProject, QgsCoordinateTransform
+from qgis.core import (
+    QgsPointXY,
+    QgsCoordinateReferenceSystem,
+    QgsProject,
+    QgsCoordinateTransform,
+)
 
 
 def to_wgs84(

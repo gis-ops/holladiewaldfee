@@ -7,6 +7,3 @@ class WaypointTypeWidget(QComboBox):
         super(WaypointTypeWidget, self).__init__(parent)
         self.addItems(VALHALLA_LOCATION_TYPES)
         # self.currentIndexChanged.connect(self.get_location_type)
-
-
-
