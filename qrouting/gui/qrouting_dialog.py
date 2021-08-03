@@ -31,19 +31,19 @@ import os.path
 import sys
 from typing import List, Union, Type
 from qgis.core import (
-                        QgsProject,
-                        QgsCoordinateTransform,
-                        QgsPointXY,
-                        QgsVectorLayer,
-                        QgsLineString,
-                        QgsFeature,
-                        QgsRectangle,
-                        QgsPoint,
-                        QgsGeometry,
-                        QgsTextAnnotation,
-                        QgsField,
-                        QgsFields
-                        )
+    QgsProject,
+    QgsCoordinateTransform,
+    QgsPointXY,
+    QgsVectorLayer,
+    QgsLineString,
+    QgsFeature,
+    QgsRectangle,
+    QgsPoint,
+    QgsGeometry,
+    QgsTextAnnotation,
+    QgsField,
+    QgsFields,
+)
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtCore import QSizeF, QPointF, QVariant
 
@@ -78,15 +78,25 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.set_icons()
 
         self.waypoint_widget.add_wp.clicked.connect(self._on_point_tool_init)
-        self.waypoint_widget.remove_wp.clicked.connect(self.waypoint_widget.clear_table)
+        self.waypoint_widget.remove_wp.clicked.connect(
+            self.waypoint_widget.clear_table
+        )
 
-        self.waypoint_widget.move_up.clicked.connect(self.waypoint_widget.move_item_up)
-        self.waypoint_widget.move_down.clicked.connect(self.waypoint_widget.move_item_down)
-        self.waypoint_widget.add_from_layer.clicked.connect(self.waypoint_widget.open_layer_selection)
+        self.waypoint_widget.move_up.clicked.connect(
+            self.waypoint_widget.move_item_up
+        )
+        self.waypoint_widget.move_down.clicked.connect(
+            self.waypoint_widget.move_item_down
+        )
+        self.waypoint_widget.add_from_layer.clicked.connect(
+            self.waypoint_widget.open_layer_selection
+        )
         self.waypoint_widget.layer_added.connect(self.check_provider)
         self.waypoint_widget.point_added.connect(self.check_provider)
 
-        self.add_layer_from_wp_check.setToolTip("If checked, the points added to the table are exported as a separate point layer.")
+        self.add_layer_from_wp_check.setToolTip(
+            "If checked, the points added to the table are exported as a separate point layer."
+        )
 
         self.provider.currentTextChanged.connect(self.on_provider_change)
         self.finished.connect(self.run)
@@ -99,34 +109,42 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
             locations = self.get_locations_from_table()
             selected_method = self.provider.currentText()
             selected_profile = self.get_profile(self.selected_provider)
-            directions = self.get_directions(self.selected_provider,
-                                             selected_profile,
-                                             selected_method,
-                                             locations
-                                             )
+            directions = self.get_directions(
+                self.selected_provider,
+                selected_profile,
+                selected_method,
+                locations,
+            )
 
-            self.add_result_layer(self.selected_provider, selected_profile, directions)
+            self.add_result_layer(
+                self.selected_provider, selected_profile, directions
+            )
 
             if self.add_layer_from_wp_check.isChecked():
                 self.new_layer_from_waypoints()
                 self.remove_all_annotations()
 
-    def _zoom_to_extent(self, layer: QgsVectorLayer, project: QgsProject) -> None:
+    def _zoom_to_extent(
+        self, layer: QgsVectorLayer, project: QgsProject
+    ) -> None:
         """Zoom to the extent of a layer."""
         ext = layer.extent()
         _bbox = []
-        min_y, max_x, max_y, min_x = ext.yMinimum(), ext.xMaximum(), ext.yMaximum(), ext.xMinimum()
+        min_y, max_x, max_y, min_x = (
+            ext.yMinimum(),
+            ext.xMaximum(),
+            ext.yMaximum(),
+            ext.xMinimum(),
+        )
         for p in [QgsPointXY(min_x, min_y), QgsPointXY(max_x, max_y)]:
             p = to_wgs84(
-                        p,
-                        project.crs(),
-                        QgsCoordinateTransform.ReverseTransform,
-                    )
+                p,
+                project.crs(),
+                QgsCoordinateTransform.ReverseTransform,
+            )
             _bbox.append(p)
 
-        self.iface.mapCanvas().zoomToFeatureExtent(
-            QgsRectangle(*_bbox)
-        )
+        self.iface.mapCanvas().zoomToFeatureExtent(QgsRectangle(*_bbox))
 
     def _on_point_tool_init(self) -> None:
         self.hide()
@@ -140,7 +158,9 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
 
     def _on_map_click(self, point: QgsPointXY, idx: int) -> None:
         self.waypoint_widget.add_to_table(point)
-        annotation_point = to_wgs84(point, self.project.crs(), QgsCoordinateTransform.ReverseTransform)
+        annotation_point = to_wgs84(
+            point, self.project.crs(), QgsCoordinateTransform.ReverseTransform
+        )
 
         annotation = self._point_tool_annotate_point(annotation_point, idx)
         self.annotations.append(annotation)
@@ -153,18 +173,28 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.show()
         self.iface.mapCanvas().setMapTool(self.last_maptool)
 
-    def _point_tool_annotate_point(self, point: QgsPoint, idx: int) -> QgsMapCanvasAnnotationItem:
+    def _point_tool_annotate_point(
+        self, point: QgsPoint, idx: int
+    ) -> QgsMapCanvasAnnotationItem:
         annotation = QgsTextAnnotation()
 
         c = QTextDocument()
         c.setHtml(STYLES.annotation_html(idx))
         annotation.setDocument(c)
-        annotation.setFrameSizeMm(QSizeF(STYLES.ANNOTATION.WIDTH, STYLES.ANNOTATION.HEIGHT))
-        annotation.setFrameOffsetFromReferencePointMm(QPointF(STYLES.ANNOTATION.OFFSET_X, STYLES.ANNOTATION.OFFSET_Y))
+        annotation.setFrameSizeMm(
+            QSizeF(STYLES.ANNOTATION.WIDTH, STYLES.ANNOTATION.HEIGHT)
+        )
+        annotation.setFrameOffsetFromReferencePointMm(
+            QPointF(STYLES.ANNOTATION.OFFSET_X, STYLES.ANNOTATION.OFFSET_Y)
+        )
         annotation.setMapPosition(point)
-        annotation.setMapPositionCrs(self.iface.mapCanvas().mapSettings().destinationCrs())
+        annotation.setMapPositionCrs(
+            self.iface.mapCanvas().mapSettings().destinationCrs()
+        )
 
-        return QgsMapCanvasAnnotationItem(annotation, self.iface.mapCanvas()).annotation()
+        return QgsMapCanvasAnnotationItem(
+            annotation, self.iface.mapCanvas()
+        ).annotation()
 
     def set_icons(self) -> None:
         # default QGIS icons
@@ -180,11 +210,21 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.waypoint_widget.move_down.setIcon(arrow_down_icon)
 
         # custom icons
-        self.profile_widget.profile_ped.setIcon(QIcon(_locate_resource("pedestrian.svg")))
-        self.profile_widget.profile_mbike.setIcon(QIcon(_locate_resource("motorbike.svg")))
-        self.profile_widget.profile_car.setIcon(QIcon(_locate_resource("car.svg")))
-        self.profile_widget.profile_bike.setIcon(QIcon(_locate_resource("bike.svg")))
-        self.profile_widget.profile_bus.setIcon(QIcon(_locate_resource("bus.svg")))
+        self.profile_widget.profile_ped.setIcon(
+            QIcon(_locate_resource("pedestrian.svg"))
+        )
+        self.profile_widget.profile_mbike.setIcon(
+            QIcon(_locate_resource("motorbike.svg"))
+        )
+        self.profile_widget.profile_car.setIcon(
+            QIcon(_locate_resource("car.svg"))
+        )
+        self.profile_widget.profile_bike.setIcon(
+            QIcon(_locate_resource("bike.svg"))
+        )
+        self.profile_widget.profile_bus.setIcon(
+            QIcon(_locate_resource("bus.svg"))
+        )
 
     def get_profile(self, provider: str) -> str:
         for button in self.profile_widget.profile_buttons:
@@ -192,22 +232,26 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                 button_name = button.objectName()
                 return _get_profile_from_button_name(button_name, provider)
 
-    def get_locations_from_table(self) -> List[Union[List[float], Valhalla.Waypoint]]:
+    def get_locations_from_table(
+        self,
+    ) -> List[Union[List[float], Valhalla.Waypoint]]:
         rows = self.waypoint_widget.coord_table.rowCount()
         locations = []
 
-        for idx, lat, lon, widget in self.waypoint_widget.get_all_rows():
-
-            point = [lon, lat]
+        for idx, *point, widget in self.waypoint_widget.get_all_rows():
 
             if widget.isEnabled():
                 type_ = widget.currentText()
                 if idx == 0 or idx == rows - 1:
                     if type_ != "break":
-                        QMessageBox.critical(self.iface.mainWindow(),
-                                             "WayPoint type error",
-                                             f"First and last locations must be of type 'break', not {type_}")
-                        raise FaultyWayPointType(f"First and last locations must be of type 'break', not {type_}")
+                        QMessageBox.critical(
+                            self.iface.mainWindow(),
+                            "WayPoint type error",
+                            f"First and last locations must be of type 'break', not {type_}",
+                        )
+                        raise FaultyWayPointType(
+                            f"First and last locations must be of type 'break', not {type_}"
+                        )
                 point = Valhalla.Waypoint(point, type=type_)
 
             locations.append(point)
@@ -218,13 +262,21 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         return locations
 
     @staticmethod
-    def get_directions(provider: str,
-                       profile: str,
-                       method: str,
-                       locations: List[Union[List[float], Valhalla.Waypoint]]) -> Direction:
+    def get_directions(
+        provider: str,
+        profile: str,
+        method: str,
+        locations: List[Union[List[float], Valhalla.Waypoint]],
+    ) -> Direction:
         """Get the directions between locations from the specified provider with the specified method."""
-        base_url = "http://localhost:8002" if provider == "Valhalla" else "http://localhost:5000"
-        router = get_router_by_name(provider.lower())(base_url=base_url, client=QClient)
+        base_url = (
+            "http://localhost:8002"
+            if provider == "Valhalla"
+            else "http://localhost:5000"
+        )
+        router = get_router_by_name(provider.lower())(
+            base_url=base_url, client=QClient
+        )
 
         direction_args = {"locations": locations, "profile": profile}
         if provider == "OSRM":
@@ -233,12 +285,18 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
 
         return directions
 
-    def add_result_layer(self, provider: str, profile: str, directions: Direction) -> None:
-        layer_out = QgsVectorLayer("LineString?crs=EPSG:4326",
-                                   f"{provider} Route ({profile})",
-                                   "memory")
+    def add_result_layer(
+        self, provider: str, profile: str, directions: Direction
+    ) -> None:
+        layer_out = QgsVectorLayer(
+            "LineString?crs=EPSG:4326",
+            f"{provider} Route ({profile})",
+            "memory",
+        )
 
-        line = QgsLineString([QgsPoint(*coords) for coords in directions.geometry])
+        line = QgsLineString(
+            [QgsPoint(*coords) for coords in directions.geometry]
+        )
         feature = QgsFeature()
         feature.setGeometry(QgsGeometry(line))
 
@@ -273,20 +331,20 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.waypoint_widget.update_waypoint_types(self.selected_provider)
 
     def new_layer_from_waypoints(self) -> None:
-        layer_out = QgsVectorLayer("Point?crs=EPSG:4326",
-                                   f"Waypoints",
-                                   "memory")
+        layer_out = QgsVectorLayer(
+            "Point?crs=EPSG:4326", "Waypoints", "memory"
+        )
 
         features = []
         if self.selected_provider == "Valhalla":
-            waypoint_type_field = QgsField('waypoint_type', QVariant.String)
+            waypoint_type_field = QgsField("waypoint_type", QVariant.String)
             layer_fields = QgsFields()
             layer_fields.append(waypoint_type_field)
             layer_out.dataProvider().addAttributes([waypoint_type_field])
             layer_out.updateFields()
 
-        for idx, lat, lon, widget in self.waypoint_widget.get_all_rows():
-            point = QgsPoint(lon, lat)
+        for idx, *coords, widget in self.waypoint_widget.get_all_rows():
+            point = QgsPoint(*coords)
             feature = QgsFeature(id=idx)
             feature.setGeometry(QgsGeometry(point))
             if widget.isEnabled():
@@ -299,4 +357,3 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         layer_out.renderer().symbol().setSize(STYLES.POINT.WIDTH)
         layer_out.updateExtents()
         self.project.addMapLayer(layer_out)
-

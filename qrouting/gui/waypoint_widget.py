@@ -1,7 +1,7 @@
 from qrouting.ui.waypoint_widget_ui import Ui_WaypointWidget
 from PyQt5.QtWidgets import QWidget, QAbstractScrollArea
 from PyQt5.QtCore import pyqtSignal
-from qgis.core import QgsPointXY, QgsVectorLayer, QgsCoordinateTransform
+from qgis.core import QgsPointXY, QgsCoordinateTransform
 from qgis.gui import QgsTableWidgetItem
 from qgis.PyQt.QtCore import QPersistentModelIndex
 from qgis.core import Qgis
@@ -28,14 +28,24 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
         self.item_count = 0
         self.layer_added.connect(lambda: self.add_wp.setDisabled(True))
         self.point_added.connect(lambda: self.add_from_layer.setDisabled(True))
-        self.all_content_removed.connect(lambda: self.add_wp.setDisabled(False))
-        self.all_content_removed.connect(lambda: self.add_from_layer.setDisabled(False))
+        self.all_content_removed.connect(
+            lambda: self.add_wp.setDisabled(False)
+        )
+        self.all_content_removed.connect(
+            lambda: self.add_from_layer.setDisabled(False)
+        )
 
-    def add_to_table(self, point: QgsPointXY, waypoint_type: Union[None, str]=None) -> None:
+    def add_to_table(
+        self, point: QgsPointXY, waypoint_type: Union[None, str] = None
+    ) -> None:
         row_index = self.coord_table.rowCount()
         self.coord_table.insertRow(row_index)
-        self.coord_table.setItem(row_index, 0, QgsTableWidgetItem(f"{point.y():.6f}"))
-        self.coord_table.setItem(row_index, 1, QgsTableWidgetItem(f"{point.x():.6f}"))
+        self.coord_table.setItem(
+            row_index, 0, QgsTableWidgetItem(f"{point.y():.6f}")
+        )
+        self.coord_table.setItem(
+            row_index, 1, QgsTableWidgetItem(f"{point.x():.6f}")
+        )
         self.coord_table.setCellWidget(row_index, 2, WaypointTypeWidget())
         if waypoint_type:
             widget = self.coord_table.cellWidget(row_index, 2)
@@ -43,13 +53,18 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
 
             if type_index == -1:
                 self.parent.iface.messageBar().pushMessage(
-                    f"Faulty Waypoint Type", f"Type must be one of {VALHALLA_LOCATION_TYPES}, not {waypoint_type}",
-                    level=Qgis.Warning, duration=3)
+                    "Faulty Waypoint Type",
+                    f"Type must be one of {VALHALLA_LOCATION_TYPES}, not {waypoint_type}",
+                    level=Qgis.Warning,
+                    duration=3,
+                )
             widget.setCurrentIndex(type_index)
         self.coord_table.resizeColumnsToContents()
         self.point_added.emit()
 
-    def move_item_down(self) -> None:  # https://stackoverflow.com/a/11930967/10955832
+    def move_item_down(
+        self,
+    ) -> None:  # https://stackoverflow.com/a/11930967/10955832
         row = self.coord_table.currentRow()
         column = self.coord_table.currentColumn()
         if row < self.coord_table.rowCount() - 1:
@@ -59,9 +74,15 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
                 if old_item:
                     self.coord_table.setItem(row + 2, i, old_item)
                 else:
-                    waypoint_cell_widget_index = self.coord_table.cellWidget(row, i).currentIndex()
-                    self.coord_table.setCellWidget(row + 2, i, WaypointTypeWidget())
-                    self.coord_table.cellWidget(row + 2, i).setCurrentIndex(waypoint_cell_widget_index)
+                    waypoint_cell_widget_index = self.coord_table.cellWidget(
+                        row, i
+                    ).currentIndex()
+                    self.coord_table.setCellWidget(
+                        row + 2, i, WaypointTypeWidget()
+                    )
+                    self.coord_table.cellWidget(row + 2, i).setCurrentIndex(
+                        waypoint_cell_widget_index
+                    )
                 self.coord_table.setCurrentCell(row + 2, column)
 
             self.coord_table.removeRow(row)
@@ -76,14 +97,23 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
                 if old_item:
                     self.coord_table.setItem(row - 1, i, old_item)
                 else:
-                    waypoint_cell_widget_index = self.coord_table.cellWidget(row + 1, i).currentIndex()
-                    self.coord_table.setCellWidget(row - 1, i, WaypointTypeWidget())
-                    self.coord_table.cellWidget(row - 1, i).setCurrentIndex(waypoint_cell_widget_index)
+                    waypoint_cell_widget_index = self.coord_table.cellWidget(
+                        row + 1, i
+                    ).currentIndex()
+                    self.coord_table.setCellWidget(
+                        row - 1, i, WaypointTypeWidget()
+                    )
+                    self.coord_table.cellWidget(row - 1, i).setCurrentIndex(
+                        waypoint_cell_widget_index
+                    )
                 self.coord_table.setCurrentCell(row - 1, column)
             self.coord_table.removeRow(row + 1)
 
     def clear_table(self) -> None:
-        row_indices = set(QPersistentModelIndex(index) for index in self.coord_table.selectedIndexes())
+        row_indices = set(
+            QPersistentModelIndex(index)
+            for index in self.coord_table.selectedIndexes()
+        )
         if row_indices:
             for row_index in row_indices:
                 self.coord_table.removeRow(row_index.row())
@@ -106,7 +136,7 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
             point = to_wgs84(
                 point=feature.geometry().asPoint(),
                 own_crs=layer.crs(),
-                direction=QgsCoordinateTransform.ForwardTransform
+                direction=QgsCoordinateTransform.ForwardTransform,
             )
             try:
                 type_ = feature.attribute(field)
@@ -118,9 +148,14 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
 
     def update_waypoint_types(self, provider: str) -> None:
         if provider == "Valhalla":
-            self.set_all_cell_widgets(True, "For more information on waypoint types, please check the Valhalla documentation.")
+            self.set_all_cell_widgets(
+                True,
+                "For more information on waypoint types, please check the Valhalla documentation.",
+            )
         elif provider == "OSRM":
-            self.set_all_cell_widgets(False, "Waypoints are not supported for OSRM")
+            self.set_all_cell_widgets(
+                False, "Waypoints are not supported for OSRM"
+            )
 
     def set_all_cell_widgets(self, boolean: bool, tooltip: str) -> None:
         for i in range(self.coord_table.rowCount()):
@@ -135,4 +170,4 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
                 float(self.coord_table.item(row, 1).text()),
             )
             widget = self.coord_table.cellWidget(row, 2)
-            yield idx, lat, lon, widget
+            yield idx, lon, lat, widget
