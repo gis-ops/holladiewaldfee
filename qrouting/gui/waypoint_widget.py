@@ -20,7 +20,6 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
 
     def __init__(self, parent=None):
         super(WayPointWidget, self).__init__(parent)
-        self.parent = parent
         self.setupUi(self)
         self.coord_table.setSizeAdjustPolicy(
             QAbstractScrollArea.AdjustToContents

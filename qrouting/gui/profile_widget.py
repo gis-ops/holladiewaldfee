@@ -1,6 +1,6 @@
 from qrouting.ui.profile_widget_ui import Ui_ProfileWidget
 from PyQt5.QtWidgets import QWidget
-
+from .config_dialogue import ConfigDialogue
 from ..core.routing import PROFILE_MAP
 
 
@@ -20,6 +20,8 @@ class ProfileWidget(Ui_ProfileWidget, QWidget):
             name = PROFILE_MAP[button.objectName()]["repr"]
             button.setToolTip(name)
 
+        self.config.clicked.connect(self.open_config_dialogue)
+
     def update_buttons(self, provider: str) -> None:
         is_not_osrm = True
         if provider == "OSRM":
@@ -32,3 +34,7 @@ class ProfileWidget(Ui_ProfileWidget, QWidget):
                 p_button.setToolTip(name)
             else:
                 p_button.setToolTip(f"{name} (not available for OSRM)")
+
+    def open_config_dialogue(self):
+        layer_dlg = ConfigDialogue(parent=self)
+        layer_dlg.exec_()

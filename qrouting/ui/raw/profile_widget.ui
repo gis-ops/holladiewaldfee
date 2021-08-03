@@ -98,7 +98,7 @@
       <layout class="QHBoxLayout" name="horizontalLayout_2"/>
      </item>
      <item>
-      <widget class="QToolButton" name="toolButton_6">
+      <widget class="QToolButton" name="config">
        <property name="toolTip">
         <string>Profile settings</string>
        </property>
@@ -106,7 +106,8 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset theme=":images/themes/default/console/iconProcessingConsole.svg"/>
+        <iconset theme=":images/themes/default/console/iconProcessingConsole.svg">
+         <normaloff>.</normaloff>.</iconset>
        </property>
       </widget>
      </item>

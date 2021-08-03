@@ -182,5 +182,6 @@ class QRouting:
             self.first_start = False
             self.dlg = QRoutingDialog(self.iface)
 
+
         # Run the dialog event loop
         self.dlg.open()

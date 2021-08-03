@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_settings_dialogue(object):
     def setupUi(self, settings_dialogue):
         settings_dialogue.setObjectName("settings_dialogue")
-        settings_dialogue.resize(404, 234)
+        settings_dialogue.resize(404, 212)
         self.verticalLayout_2 = QtWidgets.QVBoxLayout(settings_dialogue)
         self.verticalLayout_2.setObjectName("verticalLayout_2")
         self.verticalLayout = QtWidgets.QVBoxLayout()
@@ -27,7 +27,7 @@ class Ui_settings_dialogue(object):
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.costing_group)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
         self.tabWidget = QtWidgets.QTabWidget(self.costing_group)
-        self.tabWidget.setEnabled(True)
+        self.tabWidget.setEnabled(False)
         self.tabWidget.setTabPosition(QtWidgets.QTabWidget.North)
         self.tabWidget.setObjectName("tabWidget")
         self.pedestrian = QtWidgets.QWidget()
@@ -51,14 +51,16 @@ class Ui_settings_dialogue(object):
         self.avoid_group.setEnabled(True)
         self.avoid_group.setFlat(False)
         self.avoid_group.setCheckable(True)
-        self.avoid_group.setChecked(False)
         self.avoid_group.setCollapsed(False)
         self.avoid_group.setObjectName("avoid_group")
+        self.avoid_layer_dropdown = QgsMapLayerComboBox(self.avoid_group)
+        self.avoid_layer_dropdown.setGeometry(QtCore.QRect(80, 30, 160, 32))
+        self.avoid_layer_dropdown.setObjectName("avoid_layer_dropdown")
         self.verticalLayout.addWidget(self.avoid_group)
         self.verticalLayout_2.addLayout(self.verticalLayout)
         self.buttonBox = QtWidgets.QDialogButtonBox(settings_dialogue)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Save)
         self.buttonBox.setObjectName("buttonBox")
         self.verticalLayout_2.addWidget(self.buttonBox)
 
@@ -79,3 +81,4 @@ class Ui_settings_dialogue(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.bus), _translate("settings_dialogue", "Bus"))
         self.avoid_group.setTitle(_translate("settings_dialogue", "Avoid locations"))
 from qgscollapsiblegroupbox import QgsCollapsibleGroupBox
+from qgsmaplayercombobox import QgsMapLayerComboBox

@@ -75,7 +75,12 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.point_tool = PointTool(iface.mapCanvas())
         self.last_map_tool: QgsMapTool = None
         self.selected_provider = self.provider.currentText()
+        self.avoid_locations_layer = None
         self.set_icons()
+
+        self.add_layer_from_wp_check.setToolTip(
+            "If checked, the points added to the table are exported as a separate point layer."
+        )
 
         self.waypoint_widget.add_wp.clicked.connect(self._on_point_tool_init)
         self.waypoint_widget.remove_wp.clicked.connect(
@@ -94,14 +99,40 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.waypoint_widget.layer_added.connect(self.check_provider)
         self.waypoint_widget.point_added.connect(self.check_provider)
 
-        self.add_layer_from_wp_check.setToolTip(
-            "If checked, the points added to the table are exported as a separate point layer."
-        )
-
         self.provider.currentTextChanged.connect(self.on_provider_change)
         self.finished.connect(self.run)
 
         self.button_box.rejected.connect(self.on_cancel)
+
+    def set_icons(self) -> None:
+        # default QGIS icons
+        add_point_icon = QIcon(":images/themes/default/symbologyAdd.svg")
+        remove_points_icon = QIcon(":images/themes/default/mActionRemove.svg")
+        add_layer_icon = QIcon(":images/themes/default/mActionAddLayer.svg")
+        arrow_up_icon = QIcon(":images/themes/default/mActionArrowUp.svg")
+        arrow_down_icon = QIcon(":images/themes/default/mActionArrowDown.svg")
+        self.waypoint_widget.add_wp.setIcon(add_point_icon)
+        self.waypoint_widget.remove_wp.setIcon(remove_points_icon)
+        self.waypoint_widget.add_from_layer.setIcon(add_layer_icon)
+        self.waypoint_widget.move_up.setIcon(arrow_up_icon)
+        self.waypoint_widget.move_down.setIcon(arrow_down_icon)
+
+        # custom icons
+        self.profile_widget.profile_ped.setIcon(
+            QIcon(_locate_resource("pedestrian.svg"))
+        )
+        self.profile_widget.profile_mbike.setIcon(
+            QIcon(_locate_resource("motorbike.svg"))
+        )
+        self.profile_widget.profile_car.setIcon(
+            QIcon(_locate_resource("car.svg"))
+        )
+        self.profile_widget.profile_bike.setIcon(
+            QIcon(_locate_resource("bike.svg"))
+        )
+        self.profile_widget.profile_bus.setIcon(
+            QIcon(_locate_resource("bus.svg"))
+        )
 
     def run(self, result: int) -> None:
         """Run main functionality after pressing OK."""
@@ -195,36 +226,6 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         return QgsMapCanvasAnnotationItem(
             annotation, self.iface.mapCanvas()
         ).annotation()
-
-    def set_icons(self) -> None:
-        # default QGIS icons
-        add_point_icon = QIcon(":images/themes/default/symbologyAdd.svg")
-        remove_points_icon = QIcon(":images/themes/default/mActionRemove.svg")
-        add_layer_icon = QIcon(":images/themes/default/mActionAddLayer.svg")
-        arrow_up_icon = QIcon(":images/themes/default/mActionArrowUp.svg")
-        arrow_down_icon = QIcon(":images/themes/default/mActionArrowDown.svg")
-        self.waypoint_widget.add_wp.setIcon(add_point_icon)
-        self.waypoint_widget.remove_wp.setIcon(remove_points_icon)
-        self.waypoint_widget.add_from_layer.setIcon(add_layer_icon)
-        self.waypoint_widget.move_up.setIcon(arrow_up_icon)
-        self.waypoint_widget.move_down.setIcon(arrow_down_icon)
-
-        # custom icons
-        self.profile_widget.profile_ped.setIcon(
-            QIcon(_locate_resource("pedestrian.svg"))
-        )
-        self.profile_widget.profile_mbike.setIcon(
-            QIcon(_locate_resource("motorbike.svg"))
-        )
-        self.profile_widget.profile_car.setIcon(
-            QIcon(_locate_resource("car.svg"))
-        )
-        self.profile_widget.profile_bike.setIcon(
-            QIcon(_locate_resource("bike.svg"))
-        )
-        self.profile_widget.profile_bus.setIcon(
-            QIcon(_locate_resource("bus.svg"))
-        )
 
     def get_profile(self, provider: str) -> str:
         for button in self.profile_widget.profile_buttons:
