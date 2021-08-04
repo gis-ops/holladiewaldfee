@@ -27,6 +27,7 @@ class Ui_ProfileWidget(object):
         self.profile_ped.setChecked(True)
         self.profile_ped.setObjectName("profile_ped")
         self.profile_buttons = QtWidgets.QButtonGroup(ProfileWidget)
+        self.profile_buttons.setExclusive(True)
         self.profile_buttons.setObjectName("profile_buttons")
         self.profile_buttons.addButton(self.profile_ped)
         self.horizontalLayout.addWidget(self.profile_ped)

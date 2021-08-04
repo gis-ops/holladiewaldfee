@@ -51,7 +51,7 @@ class WayPointWidget(Ui_WaypointWidget, QWidget):
             type_index = widget.findText(waypoint_type)
 
             if type_index == -1:
-                self.parent.iface.messageBar().pushMessage(
+                self.parent().iface.messageBar().pushMessage(
                     "Faulty Waypoint Type",
                     f"Type must be one of {VALHALLA_LOCATION_TYPES}, not {waypoint_type}",
                     level=Qgis.Warning,

@@ -56,7 +56,7 @@ class QClient(BaseClient):
         post_params=None,
         first_request_time=None,
         retry_counter=0,
-        dry_run=None,
+        dry_run=None
     ):
         if not first_request_time:
             first_request_time = datetime.now()

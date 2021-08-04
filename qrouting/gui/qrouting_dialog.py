@@ -52,7 +52,7 @@ from ..core.maptool import PointTool
 from ..util.util import to_wgs84
 from ..util.resources import _locate_resource
 from ..core.client import QClient
-from ..core.routing import _get_profile_from_button_name
+from ..core.routing import _get_profile_from_button_name, build_locations_from_layer
 from ..core.exceptions import InsufficientPoints, FaultyWayPointType
 from ..core.options import STYLES
 
@@ -75,7 +75,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         self.point_tool = PointTool(iface.mapCanvas())
         self.last_map_tool: QgsMapTool = None
         self.selected_provider = self.provider.currentText()
-        self.avoid_locations_layer = None
+        self.avoid_locations_layer: Union[None, QgsVectorLayer] = None
         self.set_icons()
 
         self.add_layer_from_wp_check.setToolTip(
@@ -145,6 +145,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
                 selected_profile,
                 selected_method,
                 locations,
+                avoid_locations=self.avoid_locations_layer
             )
 
             self.add_result_layer(
@@ -228,7 +229,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         ).annotation()
 
     def get_profile(self, provider: str) -> str:
-        for button in self.profile_widget.profile_buttons:
+        for button in self.profile_widget.profile_button_list:
             if button.isChecked():
                 button_name = button.objectName()
                 return _get_profile_from_button_name(button_name, provider)
@@ -268,6 +269,7 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         profile: str,
         method: str,
         locations: List[Union[List[float], Valhalla.Waypoint]],
+        avoid_locations=None
     ) -> Direction:
         """Get the directions between locations from the specified provider with the specified method."""
         base_url = (
@@ -282,6 +284,10 @@ class QRoutingDialog(QtWidgets.QDialog, Ui_QRoutingDialogBase):
         direction_args = {"locations": locations, "profile": profile}
         if provider == "OSRM":
             direction_args.update({"overview": "full"})
+        else:
+            if avoid_locations:
+                avoid_locations_list = build_locations_from_layer(avoid_locations)
+                direction_args.update({"avoid_locations": avoid_locations_list})
         directions = router.directions(**direction_args)
 
         return directions
